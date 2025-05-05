@@ -17,7 +17,7 @@ const DUMMY = [
     cigarettes: "Never",
     weed: "Often",
     drugs: "Never",
-    photoUrl: "https://placekitten.com/400/300",
+    photoUrl: "https://img.buzzfeed.com/buzzfeed-static/static/2019-10/21/13/asset/bca59df568fc/sub-buzz-4034-1571664623-1.jpg",
   },
   // …more users…
 ];
