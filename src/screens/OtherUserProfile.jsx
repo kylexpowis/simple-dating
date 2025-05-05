@@ -11,11 +11,13 @@ import { useRoute } from "@react-navigation/native";
 
 export default function OtherUserProfile() {
   const { user } = useRoute().params;
-  const images = user.imageUrls || [];
+  const images = user.imageUrls || [
+    "https://img.buzzfeed.com/buzzfeed-static/static/2019-10/21/13/asset/bca59df568fc/sub-buzz-4034-1571664623-1.jpg",
+    "https://i.redd.it/kylies-ig-baddie-era-v0-39tjk8f90skc1.jpg?width=1200&format=pjpg&auto=webp&s=265fbd3d6e87c9ea5cea0c61b2d46dcb5f20fb0a",
+  ];
 
   return (
     <View style={styles.container}>
-      {/* image carousel */}
       <FlatList
         data={images}
         horizontal
