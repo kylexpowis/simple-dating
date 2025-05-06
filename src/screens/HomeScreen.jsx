@@ -1,5 +1,7 @@
+// src/screens/HomeScreen.jsx
 import React from "react";
 import { FlatList } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
 
 const DUMMY = [
@@ -26,16 +28,16 @@ const DUMMY = [
     age: 30,
     location: { city: "Manchester", country: "UK" },
     ethnicities: ["Black"],
-    relationshipType: "Casual",
+    relationshipType: "Long-term",
     hasKids: true,
     wantsKids: false,
     religion: "Christian",
-    alcohol: "Often",
+    alcohol: "Never",
     cigarettes: "Socially",
     weed: "Never",
     drugs: "Never",
     photoUrl:
-      "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg",
+      "https://i.redd.it/how-do-i-achieve-the-ig-baddie-aesthetic-pls-drop-your-best-v0-8pjv85ei5hya1.jpg?width=1170&format=pjpg&auto=webp&s=65f4401350e38bd73a294defbf8e86893dd93c28",
   },
   {
     id: "3",
@@ -69,7 +71,7 @@ const DUMMY = [
     weed: "Never",
     drugs: "Never",
     photoUrl:
-      "https://images.pexels.com/photos/3863793/pexels-photo-3863793.jpeg",
+      "https://cdn.britannica.com/67/194367-050-908BD6E8/Diana-princess-Wales-1989.jpg",
   },
   {
     id: "5",
@@ -92,17 +94,20 @@ const DUMMY = [
 
 export default function HomeScreen({ navigation }) {
   return (
-    <FlatList
-      data={DUMMY}
-      keyExtractor={(u) => u.id}
-      renderItem={({ item }) => (
-        <ProfileCard
-          {...item}
-          onPress={() =>
-            navigation.navigate("OtherUserProfile", { user: item })
-          }
-        />
-      )}
-    />
+    <SafeAreaView edges={["top"]} className="pt-[25px] flex-1">
+      <FlatList
+        data={DUMMY}
+        keyExtractor={(u) => u.id}
+        renderItem={({ item }) => (
+          <ProfileCard
+            {...item}
+            onPress={() =>
+              navigation.navigate("OtherUserProfile", { user: item })
+            }
+          />
+        )}
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
   );
 }

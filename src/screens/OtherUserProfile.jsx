@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   right: { right: 10 },
   info: { padding: 16 },
   name: { fontSize: 24, fontWeight: "bold" },
-  location: { fontSize: 16, color: "#666", marginBottom: 12 },
+  location: { fontSize: 16, color: "#668", marginBottom: 12 },
   section: { marginTop: 16, fontSize: 18, fontWeight: "600" },
   bio: { marginTop: 4, fontSize: 14, color: "#333" },
 });
