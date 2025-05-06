@@ -71,7 +71,7 @@ const DUMMY = [
     weed: "Never",
     drugs: "Never",
     photoUrl:
-      "https://cdn.britannica.com/67/194367-050-908BD6E8/Diana-princess-Wales-1989.jpg",
+      "https://images.pexels.com/photos/3863793/pexels-photo-3863793.jpeg",
   },
   {
     id: "5",
