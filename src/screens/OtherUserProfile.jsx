@@ -1,6 +1,8 @@
 // src/screens/OtherUserProfile.jsx
 import React, { useRef, useState } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  ScrollView,
   View,
   Text,
   Image,
@@ -14,9 +16,6 @@ import { MaterialIcons } from "@expo/vector-icons";
 
 export default function OtherUserProfile() {
   const { user } = useRoute().params;
-
-  // If the user has uploaded multiple images, use those;
-  // otherwise fall back to the single photoUrl from your dummy data.
   const images = (user.imageUrls && user.imageUrls.slice(0, 6)) || [
     user.photoUrl,
   ];
@@ -45,66 +44,66 @@ export default function OtherUserProfile() {
   }).current;
 
   return (
-    <View style={styles.container}>
-      {/* Image carousel */}
-      <View style={styles.carouselContainer}>
-        <FlatList
-          data={images}
-          ref={flatListRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(_, i) => i.toString()}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
-          renderItem={({ item }) => (
-            <Image source={{ uri: item }} style={styles.image} />
+    <SafeAreaView edges={["top"]} style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={[styles.carouselContainer]}>
+          <FlatList
+            data={images}
+            ref={flatListRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(_, i) => i.toString()}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
+            renderItem={({ item }) => (
+              <Image source={{ uri: item }} style={styles.image} />
+            )}
+          />
+
+          {currentIndex > 0 && (
+            <TouchableOpacity
+              style={[styles.arrow, styles.left]}
+              onPress={onPrev}
+            >
+              <MaterialIcons name="chevron-left" size={36} />
+            </TouchableOpacity>
           )}
-        />
+          {currentIndex < images.length - 1 && (
+            <TouchableOpacity
+              style={[styles.arrow, styles.right]}
+              onPress={onNext}
+            >
+              <MaterialIcons name="chevron-right" size={36} />
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {currentIndex > 0 && (
-          <TouchableOpacity
-            style={[styles.arrow, styles.left]}
-            onPress={onPrev}
-          >
-            <MaterialIcons name="chevron-left" size={36} />
-          </TouchableOpacity>
-        )}
+        {/* user info will now scroll if it overflows */}
+        <View style={styles.info}>
+          <Text style={styles.name}>
+            {user.firstName}, {user.age}
+          </Text>
+          <Text style={styles.location}>
+            {user.location.city}, {user.location.country}
+          </Text>
 
-        {currentIndex < images.length - 1 && (
-          <TouchableOpacity
-            style={[styles.arrow, styles.right]}
-            onPress={onNext}
-          >
-            <MaterialIcons name="chevron-right" size={36} />
-          </TouchableOpacity>
-        )}
-      </View>
+          <Text style={styles.section}>Bio</Text>
+          <Text style={styles.bio}>{user.bio}</Text>
 
-      {/* User info */}
-      <View style={styles.info}>
-        <Text style={styles.name}>
-          {user.firstName}, {user.age}
-        </Text>
-        <Text style={styles.location}>
-          {user.location.city}, {user.location.country}
-        </Text>
-
-        <Text style={styles.section}>Bio</Text>
-        <Text style={styles.bio}>{user.bio}</Text>
-
-        <Text style={styles.section}>Details</Text>
-        <Text>Ethnicities: {user.ethnicities.join(", ")}</Text>
-        <Text>Looking for: {user.relationshipType}</Text>
-        <Text>Has kids: {user.hasKids ? "Yes" : "No"}</Text>
-        <Text>Wants kids: {user.wantsKids ? "Yes" : "No"}</Text>
-        <Text>Religion: {user.religion}</Text>
-        <Text>Alcohol: {user.alcohol}</Text>
-        <Text>Cigarettes: {user.cigarettes}</Text>
-        <Text>Weed: {user.weed}</Text>
-        <Text>Drugs: {user.drugs}</Text>
-      </View>
-    </View>
+          <Text style={styles.section}>Details</Text>
+          <Text>Ethnicities: {user.ethnicities.join(", ")}</Text>
+          <Text>Looking for: {user.relationshipType}</Text>
+          <Text>Has kids: {user.hasKids ? "Yes" : "No"}</Text>
+          <Text>Wants kids: {user.wantsKids ? "Yes" : "No"}</Text>
+          <Text>Religion: {user.religion}</Text>
+          <Text>Alcohol: {user.alcohol}</Text>
+          <Text>Cigarettes: {user.cigarettes}</Text>
+          <Text>Weed: {user.weed}</Text>
+          <Text>Drugs: {user.drugs}</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -112,8 +111,16 @@ const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = width * 1.2;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  carouselContainer: { position: "relative" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  carouselContainer: {
+    position: "relative",
+  },
   image: {
     width,
     height: IMAGE_HEIGHT,
@@ -127,11 +134,32 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 4,
   },
-  left: { left: 10 },
-  right: { right: 10 },
-  info: { padding: 16 },
-  name: { fontSize: 24, fontWeight: "bold" },
-  location: { fontSize: 16, color: "#668", marginBottom: 12 },
-  section: { marginTop: 16, fontSize: 18, fontWeight: "600" },
-  bio: { marginTop: 4, fontSize: 14, color: "#333" },
+  left: {
+    left: 10,
+  },
+  right: {
+    right: 10,
+  },
+  info: {
+    padding: 16,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  location: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 12,
+  },
+  section: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  bio: {
+    marginTop: 4,
+    fontSize: 14,
+    color: "#333",
+  },
 });
