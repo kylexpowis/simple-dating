@@ -1,34 +1,87 @@
-import React from "react";
+// src/screens/OtherUserProfile.jsx
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
   Image,
   FlatList,
+  TouchableOpacity,
   StyleSheet,
   Dimensions,
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export default function OtherUserProfile() {
   const { user } = useRoute().params;
-  const images = user.imageUrls || [
-    "https://img.buzzfeed.com/buzzfeed-static/static/2019-10/21/13/asset/bca59df568fc/sub-buzz-4034-1571664623-1.jpg",
-    "https://i.redd.it/kylies-ig-baddie-era-v0-39tjk8f90skc1.jpg?width=1200&format=pjpg&auto=webp&s=265fbd3d6e87c9ea5cea0c61b2d46dcb5f20fb0a",
+
+  // If the user has uploaded multiple images, use those;
+  // otherwise fall back to the single photoUrl from your dummy data.
+  const images = (user.imageUrls && user.imageUrls.slice(0, 6)) || [
+    user.photoUrl,
   ];
+
+  const flatListRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const onNext = () => {
+    if (currentIndex < images.length - 1) {
+      flatListRef.current.scrollToIndex({ index: currentIndex + 1 });
+      setCurrentIndex((i) => i + 1);
+    }
+  };
+
+  const onPrev = () => {
+    if (currentIndex > 0) {
+      flatListRef.current.scrollToIndex({ index: currentIndex - 1 });
+      setCurrentIndex((i) => i - 1);
+    }
+  };
+
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems.length) {
+      setCurrentIndex(viewableItems[0].index);
+    }
+  }).current;
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={images}
-        horizontal
-        pagingEnabled
-        keyExtractor={(_, i) => i.toString()}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item }} style={styles.image} />
-        )}
-      />
+      {/* Image carousel */}
+      <View style={styles.carouselContainer}>
+        <FlatList
+          data={images}
+          ref={flatListRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(_, i) => i.toString()}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
+          renderItem={({ item }) => (
+            <Image source={{ uri: item }} style={styles.image} />
+          )}
+        />
 
+        {currentIndex > 0 && (
+          <TouchableOpacity
+            style={[styles.arrow, styles.left]}
+            onPress={onPrev}
+          >
+            <MaterialIcons name="chevron-left" size={36} />
+          </TouchableOpacity>
+        )}
+
+        {currentIndex < images.length - 1 && (
+          <TouchableOpacity
+            style={[styles.arrow, styles.right]}
+            onPress={onNext}
+          >
+            <MaterialIcons name="chevron-right" size={36} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* User info */}
       <View style={styles.info}>
         <Text style={styles.name}>
           {user.firstName}, {user.age}
@@ -60,7 +113,22 @@ const IMAGE_HEIGHT = width * 1.2;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  image: { width, height: IMAGE_HEIGHT },
+  carouselContainer: { position: "relative" },
+  image: {
+    width,
+    height: IMAGE_HEIGHT,
+    resizeMode: "cover",
+  },
+  arrow: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -18,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 18,
+    padding: 4,
+  },
+  left: { left: 10 },
+  right: { right: 10 },
   info: { padding: 16 },
   name: { fontSize: 24, fontWeight: "bold" },
   location: { fontSize: 16, color: "#666", marginBottom: 12 },
