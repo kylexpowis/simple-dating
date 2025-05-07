@@ -3,6 +3,7 @@ import React from "react";
 import { FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
+// import { supabase } from "../../Lib/supabase";
 
 const DUMMY = [
   {
@@ -71,7 +72,7 @@ const DUMMY = [
     weed: "Never",
     drugs: "Never",
     photoUrl:
-      "https://images.pexels.com/photos/3863793/pexels-photo-3863793.jpeg",
+      "https://cdn.britannica.com/67/194367-050-908BD6E8/Diana-princess-Wales-1989.jpg",
   },
   {
     id: "5",
