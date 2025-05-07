@@ -31,7 +31,10 @@
     "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.27.1",
+    "babel-preset-expo": "^13.1.11",
+    "react-native-dotenv": "^3.4.11",
+    "supabase": "^2.22.12"
   },
   "private": true
 }
