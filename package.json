@@ -6,25 +6,29 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.3.12",
     "@react-navigation/material-top-tabs": "^7.2.12",
     "@react-navigation/native": "^7.1.8",
     "@react-navigation/stack": "^7.3.1",
+    "@react-spring/native": "^9.5.5",
+    "@supabase/supabase-js": "^2.49.4",
     "expo": "~53.0.7",
+    "expo-image-picker": "~16.1.4",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.2",
-    "react-native-gesture-handler": "^2.25.0",
+    "react-native-deck-swiper": "^2.0.17",
+    "react-native-gesture-handler": "~2.24.0",
     "react-native-pager-view": "^6.7.1",
     "react-native-reanimated": "^3.17.5",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "^4.10.0",
     "react-native-tab-view": "^4.0.12",
-    "react-native-vector-icons": "^10.2.0",
-    "expo-image-picker": "~16.1.4"
+    "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
