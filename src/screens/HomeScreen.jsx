@@ -3,7 +3,7 @@ import React from "react";
 import { FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
-// import { supabase } from "../../Lib/supabase";
+import { supabase } from "../../Lib/supabase";
 
 const DUMMY = [
   {

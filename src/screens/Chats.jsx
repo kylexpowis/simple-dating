@@ -1,4 +1,3 @@
-// Chats.js
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -10,7 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { supabase } from "./supabase"; // adjust path if needed
+import { supabase } from "../../Lib/supabase";
+import { createChatSocket } from "../../Lib/ChatSocket";
 
 export default function Chats({ route }) {
   const { otherUserId } = route.params;
@@ -18,80 +18,80 @@ export default function Chats({ route }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const flatListRef = useRef();
-  const [subscription, setSubscription] = useState(null);
+  const wsRef = useRef();
 
+  // 1) Load history & open WebSocket
   useEffect(() => {
-    let channel;
-
-    async function initChat() {
-      // 1. Get current user
+    let isMounted = true;
+    (async () => {
+      // get user session
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return console.error("No user session found");
-      setCurrentUserId(user.id);
+        data: { session },
+        error: sessErr,
+      } = await supabase.auth.getSession();
+      if (sessErr || !session) return console.error("No session", sessErr);
 
-      // 2. Fetch existing messages between the two users
-      const { data: storedMessages, error } = await supabase
+      const me = session.user;
+      if (isMounted) setCurrentUserId(me.id);
+
+      // load existing messages from Supabase
+      const { data: history, error: histErr } = await supabase
         .from("messages")
         .select("*")
         .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+          `and(sender_id.eq.${me.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${me.id})`
         )
         .order("created_at", { ascending: true });
 
-      if (error) console.error("Error fetching messages:", error);
-      else setMessages(storedMessages);
+      if (histErr) console.error("History load error", histErr);
+      else if (isMounted) setMessages(history);
 
-      // 3. Subscribe to new INSERTs on messages
-      channel = supabase
-        .channel("public:messages")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "messages" },
-          (payload) => {
-            const msg = payload.new;
-            if (
-              (msg.sender_id === user.id && msg.receiver_id === otherUserId) ||
-              (msg.sender_id === otherUserId && msg.receiver_id === user.id)
-            ) {
-              setMessages((prev) => [...prev, msg]);
-              flatListRef.current?.scrollToOffset({
-                offset: 0,
-                animated: true,
-              });
-            }
+      // open our own WebSocket
+      wsRef.current = createChatSocket({
+        token: session.access_token,
+        userId: me.id,
+        otherUserId,
+        onMessage: (msg) => {
+          // only add if between these two users
+          if (
+            (msg.sender_id === me.id && msg.receiver_id === otherUserId) ||
+            (msg.sender_id === otherUserId && msg.receiver_id === me.id)
+          ) {
+            setMessages((prev) => [...prev, msg]);
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
           }
-        )
-        .subscribe();
-
-      setSubscription(channel);
-    }
-
-    initChat();
+        },
+      });
+    })();
 
     return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription);
-      } else if (channel) {
-        supabase.removeChannel(channel);
-      }
+      isMounted = false;
+      wsRef.current?.close();
     };
   }, [otherUserId]);
 
+  // 2) Send new message (via WS and persist to Supabase)
   const sendMessage = async () => {
     const text = newMessage.trim();
     if (!text || !currentUserId) return;
 
-    const message = {
+    const payload = {
       sender_id: currentUserId,
       receiver_id: otherUserId,
       content: text,
+      created_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("messages").insert([message]);
-    if (error) console.error("Error sending message:", error);
-    else setNewMessage("");
+    // Send over your WebSocket
+    wsRef.current?.send(JSON.stringify(payload));
+
+    // Persist to the DB
+    const { error: insertErr } = await supabase
+      .from("messages")
+      .insert([payload]);
+    if (insertErr) console.error("Error saving message:", insertErr);
+
+    setNewMessage("");
   };
 
   return (
