@@ -18,7 +18,7 @@ import {
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import supabase from "../../Lib/supabase";
+import { supabase } from "../../Lib/supabase";
 
 const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get("window");
