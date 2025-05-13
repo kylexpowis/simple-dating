@@ -62,7 +62,7 @@ function EditProfileScreen() {
           .from("users")
           .select("*")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
         if (usrErr) throw usrErr;
 
         // 3) Fetch user_images
@@ -74,7 +74,7 @@ function EditProfileScreen() {
         if (imgErr) throw imgErr;
 
         // Initialize form state
-        setFirstName(usr.first_name || "");
+        setFirstName(usr?.first_name || "");
         setAge(usr.age?.toString() || "");
         setCity(usr.city || "");
         setCountry(usr.country || "");
@@ -335,7 +335,7 @@ function PreviewProfileScreen() {
           .from("users")
           .select("*")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
         if (usrErr) throw usrErr;
 
         const { data: imgs, error: imgErr } = await supabase
