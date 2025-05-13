@@ -88,7 +88,12 @@ function EditProfileScreen() {
         setCigarettes(usr.cigarettes || "");
         setWeed(usr.weed || "");
         setDrugs(usr.drugs || "");
-        setImages(imgs.map((r) => r.url));
+        // 6 image slots: use existing URLs, then null placeholders
+        const existing = imgs.map((r) => r.url);
+        const slots = Array(6)
+          .fill(null)
+          .map((_, i) => existing[i] ?? null);
+        setImages(slots);
       } catch (e) {
         console.error(e);
         Alert.alert("Error", "Could not load your profile.");
