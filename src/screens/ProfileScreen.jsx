@@ -11,6 +11,7 @@ import {
   TextInput,
   StyleSheet,
   Dimensions,
+  Button,
 } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -23,7 +24,7 @@ const IMAGE_HEIGHT = width * 1.2;
 
 const MYDUMMY = {
   id: "6",
-  firstName: "Kyle",
+  firstName: "Kyle Test",
   age: 33,
   location: { city: "Manchester", country: "UK" },
   imageUrls: [require("../../assets/animekai.png")],
@@ -186,6 +187,13 @@ function EditProfileScreen() {
 
       <Text style={styles.section}>Drugs</Text>
       <TextInput style={styles.input} value={drugs} onChangeText={setDrugs} />
+      <Button
+        title="Update Profile"
+        onPress={() => {
+          // your save logic here, e.g. call a supabase update
+          console.log("Saving profile…");
+        }}
+      />
     </ScrollView>
   );
 }
