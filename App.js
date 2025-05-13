@@ -1,23 +1,35 @@
-import React, { useEffect } from "react";
+// App.js
+import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
+import { supabase } from "./Lib/supabase";
+import AuthStack from "./src/navigation/AuthStack";
 import TabNavigator from "./src/navigation/TabNavigator";
-import { supabase } from "../simple-dating/Lib/supabase"; // ✅ Make sure this path matches your setup
-
-import "react-native-url-polyfill/auto"; // ✅ Keep this for auth/network compatibility
-global.Buffer = require("buffer").Buffer; // ✅ Required for supabase-js v2 in RN
-global.self = global;
 
 export default function App() {
+  const [session, setSession] = useState(null);
+
+  // App.js
   useEffect(() => {
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (error) console.error("Auth error:", error);
-      else console.log("Logged in user:", data.user);
+    // restore persisted session
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => setSession(session));
+
+    // listen for login / logout
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_, session) => {
+      setSession(session);
     });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
     <NavigationContainer>
-      <TabNavigator />
+      {session ? <TabNavigator /> : <AuthStack />}
     </NavigationContainer>
   );
 }

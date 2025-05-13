@@ -13,7 +13,15 @@ import { supabase } from "../../Lib/supabase";
 import { createChatSocket } from "../../Lib/ChatSocket";
 
 export default function Chats({ route }) {
-  const { otherUserId } = route.params;
+  const otherUserId = route?.params?.otherUserId ?? null;
+
+  if (!otherUserId) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Select a conversation first.</Text>
+      </View>
+    );
+  }
   const [currentUserId, setCurrentUserId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
