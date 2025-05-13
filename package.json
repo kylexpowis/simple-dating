@@ -1,6 +1,7 @@
 {
   "name": "simple-dating",
   "version": "1.0.0",
+  "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -15,6 +16,7 @@
     "@react-navigation/native": "^7.1.8",
     "@react-navigation/stack": "^7.3.1",
     "@react-spring/native": "^9.5.5",
+    "@supabase/postgrest-js": "^1.19.4",
     "@supabase/supabase-js": "^2.49.4",
     "buffer": "^6.0.3",
     "event-target-shim": "^6.0.2",
@@ -34,9 +36,9 @@
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
-    "babel-preset-expo": "^13.1.11",
+    "babel-preset-expo": "~13.0.0",
     "react-native-dotenv": "^3.4.11",
+    "rimraf": "^5.0.0",
     "supabase": "^2.22.12"
-  },
-  "private": true
+  }
 }
