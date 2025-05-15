@@ -113,7 +113,7 @@ function EditProfileScreen() {
       if (userErr || !user) throw userErr || new Error("No user");
 
       const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ImagePicker.MediaType,
         quality: 0.7,
       });
       if (res.cancelled) return;
