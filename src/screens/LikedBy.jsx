@@ -1,21 +1,23 @@
 // src/screens/LikedBy.jsx
 import React from "react";
 import {
+  SafeAreaView,
+  FlatList,
   View,
   Text,
-  FlatList,
   Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import LikedByCard from "../../components/LikedByCard";
 
 const { width } = Dimensions.get("window");
-// two cards per row, 16px padding on sides, 16px between
+// match ProfileScreen grid: 16px padding each side + 16px between cards
 const CARD_WIDTH = (width - 48) / 2;
-// make cards 20% taller than they are wide
-const CARD_HEIGHT = CARD_WIDTH * 1.3;
+// make cards 20% taller than wide
+const CARD_HEIGHT = CARD_WIDTH * 1.2;
 
 const DUMMY = [
   {
@@ -92,48 +94,50 @@ export default function LikedBy() {
   const navigation = useNavigation();
 
   const renderCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate("PreviewProfile", { userId: item.id })}
-    >
+    <TouchableOpacity style={styles.card}>
       <Image source={{ uri: item.photoUrl }} style={styles.cardImage} />
-      <Text style={styles.cardName}>
-        {item.firstName}, {item.age}
-      </Text>
-      <Text style={styles.cardSub}>
-        {item.location.city}, {item.location.country}
-      </Text>
+      <View style={styles.cardInfo}>
+        <Text style={styles.cardName}>
+          {item.firstName}, {item.age}
+        </Text>
+        <Text style={styles.cardLocation}>
+          {item.location.city}, {item.location.country}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Users who already Like you 😍</Text>
-
+    <SafeAreaView style={styles.safeArea}>
+      <Text style={styles.section}>Liked By</Text>
       <FlatList
         data={DUMMY}
         keyExtractor={(u) => u.id}
-        renderItem={renderCard}
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.grid}
         showsVerticalScrollIndicator={false}
+        renderItem={renderCard}
+        onPress={() => navigation.navigate("OtherUserProfile", { user: item })}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginVertical: 16,
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  section: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginHorizontal: 16,
+    marginTop: 16,
   },
   grid: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   row: {
     justifyContent: "space-between",
@@ -141,22 +145,24 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
+    // height of image + space for text
     height: CARD_HEIGHT + 40,
-    alignItems: "center",
   },
   cardImage: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: "#eee",
   },
-  cardName: {
+  cardInfo: {
     marginTop: 8,
+  },
+  cardName: {
     fontSize: 16,
     fontWeight: "600",
   },
-  cardSub: {
+  cardLocation: {
     fontSize: 14,
-    color: "#666",
+    color: "#888",
   },
 });
