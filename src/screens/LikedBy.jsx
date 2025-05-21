@@ -93,23 +93,9 @@ const DUMMY = [
 export default function LikedBy() {
   const navigation = useNavigation();
 
-  const renderCard = ({ item }) => (
-    <TouchableOpacity style={styles.card}>
-      <Image source={{ uri: item.photoUrl }} style={styles.cardImage} />
-      <View style={styles.cardInfo}>
-        <Text style={styles.cardName}>
-          {item.firstName}, {item.age}
-        </Text>
-        <Text style={styles.cardLocation}>
-          {item.location.city}, {item.location.country}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Text style={styles.section}>Liked By</Text>
+      <Text style={styles.section}>Liked By</Text>
       <FlatList
         data={DUMMY}
         keyExtractor={(u) => u.id}
@@ -117,8 +103,14 @@ export default function LikedBy() {
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.grid}
         showsVerticalScrollIndicator={false}
-        renderItem={renderCard}
-        onPress={() => navigation.navigate("OtherUserProfile", { user: item })}
+        renderItem={({ item }) => (
+          <LikedByCard
+            {...item}
+            onPress={() =>
+              navigation.navigate("OtherUserProfile", { user: item })
+            }
+          />
+        )}
       />
     </SafeAreaView>
   );
@@ -145,8 +137,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    // height of image + space for text
-    height: CARD_HEIGHT + 40,
+    height: CARD_HEIGHT + 40, // height of image + space for text
   },
   cardImage: {
     width: CARD_WIDTH,
