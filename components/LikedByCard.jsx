@@ -10,7 +10,6 @@ import {
 } from "react-native";
 
 const { width } = Dimensions.get("window");
-// same math you use in LikedBy.jsx
 const CARD_WIDTH = (width - 48) / 2;
 const CARD_HEIGHT = CARD_WIDTH * 1.2;
 
@@ -39,12 +38,10 @@ export default function LikedByCard({
 const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
-    // leave a little space for the info below the photo
-    height: CARD_HEIGHT + 40,
+    height: CARD_HEIGHT + 55,
     borderRadius: 8,
     backgroundColor: "#fff",
     overflow: "hidden",
-    marginBottom: 16,
   },
   image: {
     width: CARD_WIDTH,
