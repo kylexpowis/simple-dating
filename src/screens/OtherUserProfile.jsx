@@ -105,7 +105,7 @@ export default function OtherUserProfile() {
           <Button
             title="Send Message"
             onPress={() =>
-              NavigationActivation.navigate("SingleChat", { otherUser: user })
+              navigation.navigate("SingleChat", { otherUser: user })
             }
           />
         </View>
