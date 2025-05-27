@@ -12,10 +12,12 @@ import {
   Dimensions,
   Button,
 } from "react-native";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 
 export default function OtherUserProfile() {
+  const navigation = useNavigation();
+
   const { user } = useRoute().params;
   const images = (user.imageUrls && user.imageUrls.slice(0, 6)) || [
     user.photoUrl,
