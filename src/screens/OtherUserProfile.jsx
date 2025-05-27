@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Button,
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -101,6 +102,7 @@ export default function OtherUserProfile() {
           <Text>Cigarettes: {user.cigarettes}</Text>
           <Text>Weed: {user.weed}</Text>
           <Text>Drugs: {user.drugs}</Text>
+          <Button title="Send Message" onPress={() => {}} />
         </View>
       </ScrollView>
     </SafeAreaView>
