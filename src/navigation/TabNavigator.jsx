@@ -3,7 +3,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import HomeStackNavigator from "./HomeStackNavigator";
 import LikedBy from "../screens/LikedBy";
-import ChatScreen from "../screens/ChatScreen";
+import Chatscreen from "../screens/ChatsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
@@ -17,7 +17,7 @@ export default function TabNavigator() {
         options={{ headerShown: false }}
       />
       <Tab.Screen name="LikedBy" component={LikedBy} />
-      <Tab.Screen name="Chats" component={ChatScreen} />
+      <Tab.Screen name="Chats" component={ChatsScreen} />
       <Tab.Screen
         name="UserProfile"
         component={ProfileScreen}
