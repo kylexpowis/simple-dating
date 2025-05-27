@@ -2,6 +2,7 @@ import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 import HomeScreen from "../screens/HomeScreen";
 import OtherUserProfile from "../screens/OtherUserProfile";
+import SingleChatScreen from "../screens/SingleChatScreen";
 
 const Stack = createStackNavigator();
 
