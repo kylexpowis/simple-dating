@@ -12,7 +12,7 @@ import {
 import { supabase } from "../../Lib/supabase";
 import { createChatSocket } from "../../Lib/ChatSocket";
 
-export default function Chats({ route }) {
+export default function ChatScreen({ route }) {
   const otherUserId = route?.params?.otherUserId ?? null;
 
   if (!otherUserId) {
