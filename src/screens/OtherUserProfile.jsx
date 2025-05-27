@@ -102,7 +102,12 @@ export default function OtherUserProfile() {
           <Text>Cigarettes: {user.cigarettes}</Text>
           <Text>Weed: {user.weed}</Text>
           <Text>Drugs: {user.drugs}</Text>
-          <Button title="Send Message" onPress={() => {}} />
+          <Button
+            title="Send Message"
+            onPress={() =>
+              NavigationActivation.navigate("SingleChat", { otherUser: user })
+            }
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
