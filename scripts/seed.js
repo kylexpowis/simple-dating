@@ -10,13 +10,14 @@ const supabase = createClient(
 const DUMMY = [
   {
     email: "alice@example.com",
-    firstName: "Alice",
+    first_name: "Alice",
     age: 27,
-    location: { city: "London", country: "UK" },
+    city: "London",
+    country: "UK",
     ethnicities: ["Asian", "White"],
-    relationshipType: "Long-term",
-    hasKids: false,
-    wantsKids: true,
+    relationship: "Long-term",
+    has_kids: false,
+    wants_kids: true,
     religion: "None",
     alcohol: "Socially",
     cigarettes: "Never",
@@ -30,13 +31,14 @@ const DUMMY = [
   },
   {
     email: "beth@example.com",
-    firstName: "Beth",
+    first_name: "Beth",
     age: 30,
-    location: { city: "Manchester", country: "UK" },
+    city: "Manchester",
+    country: "UK",
     ethnicities: ["Black"],
-    relationshipType: "Long-term",
-    hasKids: true,
-    wantsKids: false,
+    relationship: "Long-term",
+    has_kids: true,
+    wants_kids: false,
     religion: "Christian",
     alcohol: "Never",
     cigarettes: "Socially",
@@ -49,13 +51,14 @@ const DUMMY = [
   },
   {
     email: "chloe@example.com",
-    firstName: "Chloe",
+    first_name: "Chloe",
     age: 24,
-    location: { city: "Birmingham", country: "UK" },
+    city: "Birmingham",
+    country: "UK",
     ethnicities: ["Hispanic"],
-    relationshipType: "Friends",
-    hasKids: false,
-    wantsKids: true,
+    relationship: "Friends",
+    has_kids: false,
+    wants_kids: true,
     religion: "Buddhist",
     alcohol: "Never",
     cigarettes: "Never",
@@ -68,13 +71,14 @@ const DUMMY = [
   },
   {
     email: "diana@example.com",
-    firstName: "Diana",
+    first_name: "Diana",
     age: 35,
-    location: { city: "Leeds", country: "UK" },
+    city: "Leeds",
+    country: "UK",
     ethnicities: ["White"],
-    relationshipType: "Long-term",
-    hasKids: true,
-    wantsKids: true,
+    relationship: "Long-term",
+    has_kids: true,
+    wants_kids: true,
     religion: "None",
     alcohol: "Socially",
     cigarettes: "Often",
@@ -87,13 +91,14 @@ const DUMMY = [
   },
   {
     email: "emma@example.com",
-    firstName: "Emma",
+    first_name: "Emma",
     age: 29,
-    location: { city: "Glasgow", country: "UK" },
+    city: "Glasgow",
+    country: "UK",
     ethnicities: ["Mixed"],
-    relationshipType: "Long-term",
-    hasKids: false,
-    wantsKids: false,
+    relationship: "Long-term",
+    has_kids: false,
+    wants_kids: false,
     religion: "None",
     alcohol: "Socially",
     cigarettes: "Never",
@@ -108,69 +113,74 @@ const DUMMY = [
 
 async function seed() {
   try {
-    // --- 1) Upsert all users by email ---
-    const userPayload = DUMMY.map((u) => ({
+    // 2) Bulk-insert users, skipping any duplicate emails
+    const usersPayload = DUMMY.map((u) => ({
       email: u.email,
-      first_name: u.firstName,
+      first_name: u.first_name,
       age: u.age,
-      city: u.location.city,
-      country: u.location.country,
-      bio: u.bio,
+      city: u.city,
+      country: u.country,
       ethnicities: u.ethnicities,
-      relationship: u.relationshipType,
-      has_kids: u.hasKids,
-      wants_kids: u.wantsKids,
+      relationship: u.relationship,
+      has_kids: u.has_kids,
+      wants_kids: u.wants_kids,
       religion: u.religion,
       alcohol: u.alcohol,
       cigarettes: u.cigarettes,
       weed: u.weed,
       drugs: u.drugs,
+      bio: u.bio,
     }));
-
     const { error: userError } = await supabase
       .from("users")
-      .upsert(userPayload, { onConflict: ["email"] });
+      .insert(usersPayload, {
+        ignoreDuplicates: true,
+        returning: "minimal",
+      });
     if (userError) throw userError;
-    console.log(`Upserted ${userPayload.length} users.`);
 
-    // --- 2) Re-fetch to get their real UUIDs ---
-    const { data: users, error: fetchErr } = await supabase
+    // 3) Grab back all the user IDs for our dummy emails
+    const emails = DUMMY.map((u) => u.email);
+    const { data: allUsers, error: fetchError } = await supabase
       .from("users")
-      .select("id,email");
-    if (fetchErr) throw fetchErr;
+      .select("id, email")
+      .in("email", emails);
+    if (fetchError) throw fetchError;
 
-    const emailToId = users.reduce((acc, u) => {
-      acc[u.email] = u.id;
-      return acc;
+    const idMap = allUsers.reduce((map, u) => {
+      map[u.email] = u.id;
+      return map;
     }, {});
 
-    // --- 3) Build image records with the correct user_id ---
+    // 4) Prepare the images payload
     const imagesPayload = [];
     DUMMY.forEach((u) => {
-      const uid = emailToId[u.email];
-      if (!uid) return;
-      u.imageUrls.slice(0, 6).forEach((url) => {
-        imagesPayload.push({
-          user_id: uid,
-          url,
-        });
+      const user_id = idMap[u.email];
+      if (!user_id) return;
+      u.imageUrls.forEach((url) => {
+        imagesPayload.push({ user_id, url });
       });
     });
 
-    // --- 4) Upsert (or insert) those images ---
-    // We’ll just insert new ones; if you want idempotency you'll need a unique key—
-    // e.g. add a UNIQUE(url, user_id) constraint and then use upsert().
-    const { error: imgError } = await supabase
-      .from("user_images")
-      .upsert(imagesPayload, { onConflict: ["user_id", "url"] });
-    if (imgError) throw imgError;
-    console.log(`Upserted ${imagesPayload.length} images.`);
+    // 5) Bulk-insert images, skipping duplicates on your unique index (user_id,url)
+    if (imagesPayload.length) {
+      const { error: imgError, count } = await supabase
+        .from("user_images")
+        .insert(imagesPayload, {
+          ignoreDuplicates: true,
+          returning: "minimal",
+        });
+      if (imgError) throw imgError;
+      console.log(`Inserted ${count} new images (duplicates skipped).`);
+    }
 
     console.log("Seeding complete!");
   } catch (err) {
-    console.error("Seed failed:", err);
-  } finally {
-    process.exit();
+    console.error("Seed failed:", {
+      message: err.message,
+      stack: err.stack,
+    });
+    process.exit(1);
   }
 }
 
