@@ -1,3 +1,4 @@
+// src/screens/ChatsScreen.jsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -10,97 +11,95 @@ import {
   Platform,
 } from "react-native";
 import { supabase } from "../../Lib/supabase";
-import { createChatSocket } from "../../Lib/ChatSocket";
 
 export default function ChatsScreen({ route }) {
   const otherUserId = route?.params?.otherUserId ?? null;
 
-  if (!otherUserId) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Select a conversation first.</Text>
-      </View>
-    );
-  }
   const [currentUserId, setCurrentUserId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const flatListRef = useRef();
-  const wsRef = useRef();
 
-  // 1) Load history & open WebSocket
   useEffect(() => {
+    let channel;
     let isMounted = true;
+
     (async () => {
-      // get user session
+      // 1) get session & current user
       const {
         data: { session },
         error: sessErr,
       } = await supabase.auth.getSession();
       if (sessErr || !session) return console.error("No session", sessErr);
-
       const me = session.user;
       if (isMounted) setCurrentUserId(me.id);
 
-      // load existing messages from Supabase
-      const { data: history, error: histErr } = await supabase
-        .from("messages")
-        .select("*")
-        .or(
-          `and(sender_id.eq.${me.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${me.id})`
-        )
-        .order("created_at", { ascending: true });
+      // 2) load existing history
+      if (otherUserId) {
+        const { data: history, error: histErr } = await supabase
+          .from("messages")
+          .select("*")
+          .or(
+            `and(sender_id.eq.${me.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${me.id})`
+          )
+          .order("created_at", { ascending: true });
+        if (histErr) console.error("History load error", histErr);
+        else if (isMounted) setMessages(history);
+      }
 
-      if (histErr) console.error("History load error", histErr);
-      else if (isMounted) setMessages(history);
-
-      // open our own WebSocket
-      wsRef.current = createChatSocket({
-        token: session.access_token,
-        userId: me.id,
-        otherUserId,
-        onMessage: (msg) => {
-          // only add if between these two users
-          if (
-            (msg.sender_id === me.id && msg.receiver_id === otherUserId) ||
-            (msg.sender_id === otherUserId && msg.receiver_id === me.id)
-          ) {
-            setMessages((prev) => [...prev, msg]);
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-          }
-        },
-      });
+      // 3) subscribe to new messages via Supabase Realtime
+      if (otherUserId) {
+        channel = supabase
+          .channel(`chat-${me.id}-${otherUserId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `or(and(sender_id.eq.${me.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${me.id}))`,
+            },
+            (payload) => {
+              setMessages((prev) => [...prev, payload.new]);
+              flatListRef.current?.scrollToOffset({
+                offset: 0,
+                animated: true,
+              });
+            }
+          )
+          .subscribe();
+      }
     })();
 
     return () => {
       isMounted = false;
-      wsRef.current?.close();
+      if (channel) supabase.removeChannel(channel);
     };
   }, [otherUserId]);
 
-  // 2) Send new message (via WS and persist to Supabase)
+  // send message: still insert via supabase—and realtime channel will pick it up
   const sendMessage = async () => {
-    const text = newMessage.trim();
-    if (!text || !currentUserId) return;
+    if (!newMessage.trim() || !currentUserId) return;
 
     const payload = {
       sender_id: currentUserId,
       receiver_id: otherUserId,
-      content: text,
+      content: newMessage.trim(),
       created_at: new Date().toISOString(),
     };
 
-    // Send over your WebSocket
-    wsRef.current?.send(JSON.stringify(payload));
-
-    // Persist to the DB
-    const { error: insertErr } = await supabase
-      .from("messages")
-      .insert([payload]);
-    if (insertErr) console.error("Error saving message:", insertErr);
-
+    const { error } = await supabase.from("messages").insert([payload]);
+    if (error) console.error("Error saving message:", error);
     setNewMessage("");
   };
+
+  if (!otherUserId) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text>Select a conversation first.</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -111,7 +110,7 @@ export default function ChatsScreen({ route }) {
       <FlatList
         ref={flatListRef}
         data={[...messages].reverse()}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => {
           const isMe = item.sender_id === currentUserId;
           return (
@@ -144,6 +143,11 @@ export default function ChatsScreen({ route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   messageBubble: {
     marginVertical: 4,
     marginHorizontal: 8,
