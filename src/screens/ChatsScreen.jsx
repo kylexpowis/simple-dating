@@ -1,185 +1,237 @@
-// src/screens/ChatsScreen.jsx
-import React, { useState, useEffect, useRef } from "react";
+// src/screens/ChatsScreen
+import React, { useEffect, useState } from "react";
 import {
   View,
-  TextInput,
-  Button,
-  FlatList,
   Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
+import SingleChatScreen from "./SingleChatScreen";
 
-export default function ChatsScreen({ route }) {
-  const otherUserId = route?.params?.otherUserId ?? null;
-
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const flatListRef = useRef();
+export default function ChatListScreen() {
+  const navigation = useNavigation();
+  const [meId, setMeId] = useState(null);
+  const [matches, setMatches] = useState([]);
+  const [previews, setPreviews] = useState([]);
 
   useEffect(() => {
-    let channel;
     let isMounted = true;
 
     (async () => {
-      // 1) get session & current user
+      // 1) get current user
       const {
         data: { session },
         error: sessErr,
       } = await supabase.auth.getSession();
-      if (sessErr || !session) return console.error("No session", sessErr);
+      if (sessErr || !session) return console.error(sessErr);
       const me = session.user;
-      if (isMounted) setCurrentUserId(me.id);
+      if (!isMounted) return;
+      setMeId(me.id);
 
-      // 2) load existing history
-      if (otherUserId) {
-        const { data: history, error: histErr } = await supabase
-          .from("messages")
-          .select("*")
-          .or(
-            `and(sender_id.eq.${me.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${me.id})`
-          )
-          .order("created_at", { ascending: true });
-        if (histErr) console.error("History load error", histErr);
-        else if (isMounted) setMessages(history);
+      // 2) fetch mutual matches
+      let { data: matchRows, error: matchErr } = await supabase
+        .from("matches")
+        .select("user_a, user_b")
+        .or(`user_a.eq.${me.id},user_b.eq.${me.id}`);
+      if (matchErr) return console.error(matchErr);
+
+      const otherIds = matchRows.map((m) =>
+        m.user_a === me.id ? m.user_b : m.user_a
+      );
+
+      // 3) fetch their user info + first image
+      if (otherIds.length) {
+        const { data: users, error: userErr } = await supabase
+          .from("users")
+          .select("id, first_name")
+          .in("id", otherIds);
+        if (userErr) return console.error(userErr);
+
+        const { data: images, error: imgErr } = await supabase
+          .from("user_images")
+          .select("user_id, url")
+          .in("user_id", otherIds);
+        if (imgErr) return console.error(imgErr);
+
+        const matchedProfiles = users.map((u) => ({
+          id: u.id,
+          firstName: u.first_name,
+          photoUrl: images.find((i) => i.user_id === u.id)?.url,
+        }));
+        setMatches(matchedProfiles);
       }
 
-      // 3) subscribe to new messages via Supabase Realtime
-      if (otherUserId) {
-        channel = supabase
-          .channel(`chat-${me.id}-${otherUserId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "messages",
-              filter: `or(and(sender_id.eq.${me.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${me.id}))`,
-            },
-            (payload) => {
-              setMessages((prev) => [...prev, payload.new]);
-              flatListRef.current?.scrollToOffset({
-                offset: 0,
-                animated: true,
-              });
-            }
-          )
-          .subscribe();
-      }
+      // 4) fetch latest message per conversation for previews
+      //    we can query the messages table, grouped by the other user
+      let { data: msgs, error: msgErr } = await supabase.rpc(
+        "latest_messages",
+        { uid: me.id }
+      );
+      if (msgErr) return console.error(msgErr);
+      // expected return: [{other_id, content, sent_at}, ...]
+      if (isMounted) setPreviews(msgs);
     })();
 
     return () => {
       isMounted = false;
-      if (channel) supabase.removeChannel(channel);
     };
-  }, [otherUserId]);
-
-  // send message: still insert via supabase—and realtime channel will pick it up
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !currentUserId) return;
-
-    const payload = {
-      sender_id: currentUserId,
-      receiver_id: otherUserId,
-      content: newMessage.trim(),
-      created_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from("messages").insert([payload]);
-    if (error) console.error("Error saving message:", error);
-    setNewMessage("");
-  };
-
-  if (!otherUserId) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text>Select a conversation first.</Text>
-      </View>
-    );
-  }
+  }, []);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.select({ ios: "padding", android: undefined })}
-      keyboardVerticalOffset={90}
-    >
-      <FlatList
-        ref={flatListRef}
-        data={[...messages].reverse()}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => {
-          const isMe = item.sender_id === currentUserId;
-          return (
-            <View
-              style={[
-                styles.messageBubble,
-                isMe ? styles.myBubble : styles.theirBubble,
-              ]}
+    <View style={styles.container}>
+      {/* Matches strip */}
+      <View style={styles.matchesContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.matchesScroll}
+        >
+          {matches.map((u) => (
+            <TouchableOpacity
+              key={u.id}
+              style={styles.matchItem}
+              onPress={() =>
+                navigation.navigate("SingleChatScreen", {
+                  otherUserId: u.id,
+                })
+              }
             >
-              <Text style={styles.messageText}>{item.content}</Text>
-            </View>
-          );
-        }}
-        inverted
-        contentContainerStyle={{ paddingVertical: 10 }}
-      />
+              {u.photoUrl ? (
+                <Image
+                  source={{ uri: u.photoUrl }}
+                  style={styles.matchAvatar}
+                />
+              ) : (
+                <View style={[styles.matchAvatar, styles.matchPlaceholder]} />
+              )}
+              <Text style={styles.matchName} numberOfLines={1}>
+                {u.firstName}
+              </Text>
+            </TouchableOpacity>
+          ))}
 
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          value={newMessage}
-          onChangeText={setNewMessage}
-          placeholder="Type a message…"
-        />
-        <Button title="Send" onPress={sendMessage} />
+          {/* if no matches yet */}
+          {matches.length === 0 && (
+            <Text style={styles.noMatches}>No matches yet</Text>
+          )}
+        </ScrollView>
       </View>
-    </KeyboardAvoidingView>
+
+      {/* Message previews */}
+      <FlatList
+        data={previews}
+        keyExtractor={(item) => item.other_id}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.previewItem}
+            onPress={() =>
+              navigation.navigate("ChatsScreen", {
+                otherUserId: item.other_id,
+              })
+            }
+          >
+            <View style={styles.previewAvatarPlaceholder} />
+            <View style={styles.previewText}>
+              <Text style={styles.previewName}>{item.other_id}</Text>
+              <Text style={styles.previewMessage} numberOfLines={1}>
+                {item.content}
+              </Text>
+            </View>
+            <Text style={styles.previewTime}>
+              {new Date(item.sent_at).toLocaleTimeString()}
+            </Text>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={() => (
+          <View style={styles.empty}>
+            <Text>No conversations yet</Text>
+          </View>
+        )}
+      />
+    </View>
   );
 }
 
+const AVATAR_SIZE = 50;
+const MATCH_ITEM_WIDTH = 60;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  emptyContainer: {
-    flex: 1,
+
+  /* Matches strip */
+  matchesContainer: {
+    borderBottomWidth: 1,
+    borderColor: "#ddd",
+    paddingVertical: 8,
+  },
+  matchesScroll: {
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+  matchItem: {
+    width: MATCH_ITEM_WIDTH,
+    alignItems: "center",
+    marginRight: 12,
+  },
+  matchAvatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: "#eee",
+  },
+  matchPlaceholder: {
     justifyContent: "center",
     alignItems: "center",
   },
-  messageBubble: {
-    marginVertical: 4,
-    marginHorizontal: 8,
-    padding: 10,
-    borderRadius: 16,
-    maxWidth: "75%",
+  matchName: {
+    marginTop: 4,
+    fontSize: 12,
+    textAlign: "center",
   },
-  myBubble: {
-    alignSelf: "flex-end",
-    backgroundColor: "#DCF8C5",
+  noMatches: {
+    color: "#666",
+    fontSize: 14,
   },
-  theirBubble: {
-    alignSelf: "flex-start",
-    backgroundColor: "#ECECEC",
-  },
-  messageText: {
-    fontSize: 16,
-  },
-  inputRow: {
+
+  /* Previews */
+  previewItem: {
     flexDirection: "row",
-    padding: 8,
-    borderTopWidth: 1,
-    borderColor: "#ddd",
     alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderColor: "#f0f0f0",
   },
-  input: {
+  previewAvatarPlaceholder: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: "#ddd",
+    marginRight: 12,
+  },
+  previewText: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
+  },
+  previewName: {
+    fontWeight: "600",
+  },
+  previewMessage: {
+    color: "#555",
+    marginTop: 2,
+  },
+  previewTime: {
+    fontSize: 12,
+    color: "#999",
+    marginLeft: 8,
+  },
+  empty: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 40,
   },
 });
