@@ -130,7 +130,7 @@ export default function ChatListScreen() {
           <TouchableOpacity
             style={styles.previewItem}
             onPress={() =>
-              navigation.navigate("ChatsScreen", {
+              navigation.navigate("SingleChatsScreen", {
                 otherUserId: item.other_id,
               })
             }
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   noMatches: {
-    color: "#666",
+    color: "#777",
     fontSize: 14,
   },
 
