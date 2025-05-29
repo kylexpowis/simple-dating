@@ -1,9 +1,105 @@
 // src/screens/HomeScreen.jsx
-import React from "react";
-import { FlatList } from "react-native";
+import React, { useEffect, useState } from "react";
+import { FlatList, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
 import { supabase } from "../../Lib/supabase";
+
+export default function HomeScreen({ navigation }) {
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProfiles() {
+      setLoading(true);
+
+      // fetch users + their images
+      const { data, error } = await supabase.from("users").select(`
+          id,
+          first_name,
+          age,
+          city,
+          country,
+          ethnicities,
+          relationship,
+          has_kids,
+          wants_kids,
+          religion,
+          alcohol,
+          cigarettes,
+          weed,
+          drugs,
+          bio,
+          user_images (
+            url
+          )
+        `);
+
+      if (error) {
+        console.error("Error fetching profiles:", error);
+      } else {
+        // massage into the shape ProfileCard expects
+        const formatted = data.map((u) => ({
+          id: u.id,
+          firstName: u.first_name,
+          age: u.age,
+          location: { city: u.city, country: u.country },
+          ethnicities: u.ethnicities,
+          relationshipType: u.relationship,
+          hasKids: u.has_kids,
+          wantsKids: u.wants_kids,
+          religion: u.religion,
+          alcohol: u.alcohol,
+          cigarettes: u.cigarettes,
+          weed: u.weed,
+          drugs: u.drugs,
+          bio: u.bio,
+          // take the first image or null
+          photoUrl: u.user_images?.[0]?.url || null,
+        }));
+        setProfiles(formatted);
+      }
+
+      setLoading(false);
+    }
+
+    loadProfiles();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        edges={["top"]}
+        className="pt-[25px] flex-1 justify-center items-center"
+      >
+        <Text>Loading profiles…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView edges={["top"]} className="pt-[25px] flex-1">
+      <FlatList
+        data={profiles}
+        keyExtractor={(u) => u.id}
+        renderItem={({ item }) => (
+          <ProfileCard
+            {...item}
+            onPress={() =>
+              navigation.navigate("OtherUserProfile", { user: item })
+            }
+          />
+        )}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={() => (
+          <View className="flex-1 justify-center items-center">
+            <Text>No profiles found.</Text>
+          </View>
+        )}
+      />
+    </SafeAreaView>
+  );
+}
 
 const DUMMY = [
   {
@@ -92,23 +188,3 @@ const DUMMY = [
       "https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg",
   },
 ];
-
-export default function HomeScreen({ navigation }) {
-  return (
-    <SafeAreaView edges={["top"]} className="pt-[25px] flex-1">
-      <FlatList
-        data={DUMMY}
-        keyExtractor={(u) => u.id}
-        renderItem={({ item }) => (
-          <ProfileCard
-            {...item}
-            onPress={() =>
-              navigation.navigate("OtherUserProfile", { user: item })
-            }
-          />
-        )}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
-  );
-}
