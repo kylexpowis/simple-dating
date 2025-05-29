@@ -110,6 +110,8 @@ export default function OtherUserProfile() {
               navigation.navigate("SingleChat", { otherUser: user })
             }
           />
+          <Button title="Like" />
+          <Button title="Dislike" />
         </View>
       </ScrollView>
     </SafeAreaView>
