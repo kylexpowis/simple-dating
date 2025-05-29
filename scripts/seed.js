@@ -1,115 +1,110 @@
 // File: scripts/seed.js
-// Supabase seed script for dummy users and their images (idempotent upsert)
-// Images will have sequential IDs (1–n) without user_id column
-
 require("dotenv").config();
 const { createClient } = require("@supabase/supabase-js");
 
-// Initialize Supabase with service_role key
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Dummy data: each user with up to 6 image URLs
 const DUMMY = [
   {
-    id: 1,
     email: "alice@example.com",
-    firstName: "Alice",
+    first_name: "Alice",
     age: 27,
-    location: { city: "London", country: "UK" },
+    city: "London",
+    country: "UK",
     ethnicities: ["Asian", "White"],
-    relationshipType: "Long-term",
-    hasKids: false,
-    wantsKids: true,
+    relationship: "Long-term",
+    has_kids: false,
+    wants_kids: true,
     religion: "None",
     alcohol: "Socially",
     cigarettes: "Never",
     weed: "Often",
     drugs: "Never",
-    bio: "",
+    bio: "Hi, I'm Alice!",
     imageUrls: [
       "https://img.buzzfeed.com/buzzfeed-static/static/2019-10/21/13/asset/bca59df568fc/sub-buzz-4034-1571664623-1.jpg",
       "https://i.redd.it/kylies-ig-baddie-era-v0-39tjk8f90skc1.jpg?width=1200&format=pjpg&auto=webp&s=265fbd3d6e87c9ea5cea0c61b2d46dcb5f20fb0a",
     ],
   },
   {
-    id: 2,
     email: "beth@example.com",
-    firstName: "Beth",
+    first_name: "Beth",
     age: 30,
-    location: { city: "Manchester", country: "UK" },
+    city: "Manchester",
+    country: "UK",
     ethnicities: ["Black"],
-    relationshipType: "Long-term",
-    hasKids: true,
-    wantsKids: false,
+    relationship: "Long-term",
+    has_kids: true,
+    wants_kids: false,
     religion: "Christian",
     alcohol: "Never",
     cigarettes: "Socially",
     weed: "Never",
     drugs: "Never",
-    bio: "",
+    bio: "Hey there—Beth here!",
     imageUrls: [
       "https://i.redd.it/how-do-i-achieve-the-ig-baddie-aesthetic-pls-drop-your-best-v0-8pjv85ei5hya1.jpg?width=1170&format=pjpg&auto=webp&s=65f4401350e38bd73a294defbf8e86893dd93c28",
     ],
   },
   {
-    id: 3,
     email: "chloe@example.com",
-    firstName: "Chloe",
+    first_name: "Chloe",
     age: 24,
-    location: { city: "Birmingham", country: "UK" },
+    city: "Birmingham",
+    country: "UK",
     ethnicities: ["Hispanic"],
-    relationshipType: "Friends",
-    hasKids: false,
-    wantsKids: true,
+    relationship: "Friends",
+    has_kids: false,
+    wants_kids: true,
     religion: "Buddhist",
     alcohol: "Never",
     cigarettes: "Never",
     weed: "Socially",
     drugs: "Never",
-    bio: "",
+    bio: "Zen and the art of friendship.",
     imageUrls: [
       "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg",
     ],
   },
   {
-    id: 4,
     email: "diana@example.com",
-    firstName: "Diana",
+    first_name: "Diana",
     age: 35,
-    location: { city: "Leeds", country: "UK" },
+    city: "Leeds",
+    country: "UK",
     ethnicities: ["White"],
-    relationshipType: "Long-term",
-    hasKids: true,
-    wantsKids: true,
+    relationship: "Long-term",
+    has_kids: true,
+    wants_kids: true,
     religion: "None",
     alcohol: "Socially",
     cigarettes: "Often",
     weed: "Never",
     drugs: "Never",
-    bio: "",
+    bio: "Ready for adventure.",
     imageUrls: [
       "https://images.pexels.com/photos/3863793/pexels-photo-3863793.jpeg",
     ],
   },
   {
-    id: 5,
     email: "emma@example.com",
-    firstName: "Emma",
+    first_name: "Emma",
     age: 29,
-    location: { city: "Glasgow", country: "UK" },
+    city: "Glasgow",
+    country: "UK",
     ethnicities: ["Mixed"],
-    relationshipType: "Long-term",
-    hasKids: false,
-    wantsKids: false,
+    relationship: "Long-term",
+    has_kids: false,
+    wants_kids: false,
     religion: "None",
     alcohol: "Socially",
     cigarettes: "Never",
     weed: "Often",
     drugs: "Never",
-    bio: "",
+    bio: "Coffee lover ☕",
     imageUrls: [
       "https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg",
     ],
@@ -118,56 +113,74 @@ const DUMMY = [
 
 async function seed() {
   try {
-    // 1) Upsert users by primary key 'id'
-    const userPayload = DUMMY.map((u) => ({
-      id: u.id,
+    // 2) Bulk-insert users, skipping any duplicate emails
+    const usersPayload = DUMMY.map((u) => ({
       email: u.email,
-      first_name: u.firstName,
+      first_name: u.first_name,
       age: u.age,
-      city: u.location.city,
-      country: u.location.country,
-      bio: u.bio || null,
+      city: u.city,
+      country: u.country,
       ethnicities: u.ethnicities,
-      relationship: u.relationshipType,
-      has_kids: u.hasKids,
-      wants_kids: u.wantsKids ? "yes" : "no",
+      relationship: u.relationship,
+      has_kids: u.has_kids,
+      wants_kids: u.wants_kids,
       religion: u.religion,
       alcohol: u.alcohol,
       cigarettes: u.cigarettes,
       weed: u.weed,
       drugs: u.drugs,
+      bio: u.bio,
     }));
-
     const { error: userError } = await supabase
       .from("users")
-      .upsert(userPayload, { onConflict: ["id"] });
+      .insert(usersPayload, {
+        ignoreDuplicates: true,
+        returning: "minimal",
+      });
     if (userError) throw userError;
-    console.log(`Upserted ${userPayload.length} users.`);
 
-    // 2) Prepare image records sequentially (id: 1..n)
+    // 3) Grab back all the user IDs for our dummy emails
+    const emails = DUMMY.map((u) => u.email);
+    const { data: allUsers, error: fetchError } = await supabase
+      .from("users")
+      .select("id, email")
+      .in("email", emails);
+    if (fetchError) throw fetchError;
+
+    const idMap = allUsers.reduce((map, u) => {
+      map[u.email] = u.id;
+      return map;
+    }, {});
+
+    // 4) Prepare the images payload
     const imagesPayload = [];
     DUMMY.forEach((u) => {
-      u.imageUrls.slice(0, 6).forEach((url) => {
-        imagesPayload.push({ url });
+      const user_id = idMap[u.email];
+      if (!user_id) return;
+      u.imageUrls.forEach((url) => {
+        imagesPayload.push({ user_id, url });
       });
     });
-    // Assign sequential IDs starting at 1
-    imagesPayload.forEach((img, idx) => {
-      img.id = idx + 1;
-    });
 
-    // 3) Upsert images by primary key 'id'
-    const { error: imgError } = await supabase
-      .from("user_images")
-      .upsert(imagesPayload, { onConflict: ["id"] });
-    if (imgError) throw imgError;
-    console.log(`Upserted ${imagesPayload.length} images.`);
+    // 5) Bulk-insert images, skipping duplicates on your unique index (user_id,url)
+    if (imagesPayload.length) {
+      const { error: imgError, count } = await supabase
+        .from("user_images")
+        .insert(imagesPayload, {
+          ignoreDuplicates: true,
+          returning: "minimal",
+        });
+      if (imgError) throw imgError;
+      console.log(`Inserted ${count} new images (duplicates skipped).`);
+    }
 
-    // Done. Idempotent seed: no duplicates, preserves IDs 1–n
+    console.log("Seeding complete!");
   } catch (err) {
-    console.error("Seed error:", err.message || err);
-  } finally {
-    process.exit();
+    console.error("Seed failed:", {
+      message: err.message,
+      stack: err.stack,
+    });
+    process.exit(1);
   }
 }
 
