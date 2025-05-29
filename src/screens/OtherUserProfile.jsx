@@ -1,5 +1,5 @@
 // src/screens/OtherUserProfile.jsx
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ScrollView,
@@ -14,15 +14,51 @@ import {
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { supabase } from "../../Lib/supabase";
 
 export default function OtherUserProfile() {
   const navigation = useNavigation();
-
   const { user } = useRoute().params;
+
+  // 1) load the current signed-in user
+  const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error("getUser error:", error);
+      } else {
+        console.log("Signed in as:", data.user);
+        setCurrentUser(data.user);
+      }
+    })();
+  }, []);
+
+  // 2) instrumented like handler
+  const handleLike = async () => {
+    console.log("handleLike()", { currentUser, target: user.id });
+    if (!currentUser) {
+      console.warn("You must be signed in to like someone.");
+      return;
+    }
+    const payload = {
+      liker_id: currentUser.id,
+      likee_id: user.id,
+    };
+    const { data: insertData, error: insertError } = await supabase
+      .from("likes")
+      .insert([payload], { returning: "representation" });
+    console.log("💾 insert response:", { insertData, insertError });
+    if (insertError) {
+      alert(`Could not like: ${insertError.message}`);
+    } else {
+      alert(`You liked ${user.firstName}!`);
+    }
+  };
+
   const images = (user.imageUrls && user.imageUrls.slice(0, 6)) || [
     user.photoUrl,
   ];
-
   const flatListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -49,7 +85,7 @@ export default function OtherUserProfile() {
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.carouselContainer]}>
+        <View style={styles.carouselContainer}>
           <FlatList
             data={images}
             ref={flatListRef}
@@ -63,7 +99,6 @@ export default function OtherUserProfile() {
               <Image source={{ uri: item }} style={styles.image} />
             )}
           />
-
           {currentIndex > 0 && (
             <TouchableOpacity
               style={[styles.arrow, styles.left]}
@@ -82,7 +117,6 @@ export default function OtherUserProfile() {
           )}
         </View>
 
-        {/* user info will now scroll if it overflows */}
         <View style={styles.info}>
           <Text style={styles.name}>
             {user.firstName}, {user.age}
@@ -104,14 +138,15 @@ export default function OtherUserProfile() {
           <Text>Cigarettes: {user.cigarettes}</Text>
           <Text>Weed: {user.weed}</Text>
           <Text>Drugs: {user.drugs}</Text>
+
           <Button
             title="Send Message"
             onPress={() =>
               navigation.navigate("SingleChat", { otherUser: user })
             }
           />
-          <Button title="Like" />
-          <Button title="Dislike" />
+          <Button title="Like" onPress={handleLike} />
+          <Button title="Dislike" onPress={() => console.log("Disliked")} />
         </View>
       </ScrollView>
     </SafeAreaView>
