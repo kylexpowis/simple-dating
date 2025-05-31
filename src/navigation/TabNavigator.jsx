@@ -5,6 +5,7 @@ import HomeStackNavigator from "./HomeStackNavigator";
 import LikedBy from "../screens/LikedBy";
 import ChatsScreen from "../screens/ChatsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import LoginScreen from "../screens/LoginScreen";
 
 const Tab = createBottomTabNavigator();
 
