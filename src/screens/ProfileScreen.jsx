@@ -315,6 +315,7 @@ function EditProfileScreen() {
 
       <View style={{ marginVertical: 20 }}>
         <Button title="Update Profile" onPress={updateProfile} />
+        <Button title="Logout" />
       </View>
     </ScrollView>
   );
