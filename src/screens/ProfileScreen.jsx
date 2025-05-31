@@ -19,6 +19,7 @@ import { createMaterialTopTabNavigator } from "@react-navigation/material-top-ta
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../Lib/supabase";
+import { useNavigation } from "@react-navigation/native";
 
 const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get("window");
@@ -26,7 +27,7 @@ const IMAGE_HEIGHT = width * 1.2;
 
 function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
-
+  const navigation = useNavigation();
   // Form state
   const [images, setImages] = useState(Array(6).fill(null));
   const [firstName, setFirstName] = useState("");
@@ -194,6 +195,18 @@ function EditProfileScreen() {
     }
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      navigation.getParent()?.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "Login" }],
+        })
+      );
+    }
+  };
+
   if (loading) {
     return <ActivityIndicator style={{ marginTop: 50 }} />;
   }
@@ -315,7 +328,7 @@ function EditProfileScreen() {
 
       <View style={{ marginVertical: 20 }}>
         <Button title="Update Profile" onPress={updateProfile} />
-        <Button title="Logout" />
+        <Button title="Logout" onPress={handleLogout} />
       </View>
     </ScrollView>
   );
