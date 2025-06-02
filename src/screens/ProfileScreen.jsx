@@ -344,19 +344,56 @@ function PreviewProfileScreen() {
   useEffect(() => {
     (async () => {
       try {
+        // 1) Get current user from Supabase Auth
         const {
           data: { user },
           error: userErr,
         } = await supabase.auth.getUser();
         if (userErr || !user) throw userErr || new Error("No user");
 
-        const { data: usr, error: usrErr } = await supabase
+        // 2) Attempt to fetch existing row in `public.users`
+        let { data: usr, error: usrErr } = await supabase
           .from("users")
           .select("*")
           .eq("id", user.id)
           .maybeSingle();
         if (usrErr) throw usrErr;
 
+        // 3) If no row exists, insert/upsert a "blank" profile row
+        if (!usr) {
+          const blankProfile = {
+            id: user.id,
+            first_name: "",
+            age: null,
+            city: "",
+            country: "",
+            bio: "",
+            ethnicities: [],
+            relationship: "",
+            has_kids: false,
+            wants_kids: false,
+            religion: "",
+            alcohol: "",
+            cigarettes: "",
+            weed: "",
+            drugs: "",
+          };
+          const { error: upsertErr } = await supabase
+            .from("users")
+            .upsert(blankProfile, { returning: "minimal" });
+          if (upsertErr) throw upsertErr;
+
+          // Re-fetch the newly created row so `usr` is not null
+          const { data: newUsr, error: newUsrErr } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (newUsrErr) throw newUsrErr;
+          usr = newUsr;
+        }
+
+        // 4) Fetch all user_images for this user (may be empty initially)
         const { data: imgs, error: imgErr } = await supabase
           .from("user_images")
           .select("url")
@@ -364,6 +401,7 @@ function PreviewProfileScreen() {
           .order("uploaded_at", { ascending: true });
         if (imgErr) throw imgErr;
 
+        // 5) Set local state now that we have a guaranteed `profile` object
         setProfile(usr);
         setImages(imgs.map((r) => r.url));
       } catch (e) {
@@ -379,14 +417,7 @@ function PreviewProfileScreen() {
     return <ActivityIndicator style={{ marginTop: 50 }} />;
   }
 
-  if (!profile) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text>No profile data available.</Text>
-      </View>
-    );
-  }
-
+  // Because we upserted a blank row above, `profile` will never be null here
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
