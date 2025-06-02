@@ -1,80 +1,128 @@
-// src/screens/ChatsScreen
+// src/screens/ChatsScreen.jsx
 import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  Image,
   ScrollView,
-  TouchableOpacity,
   FlatList,
   StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
-import SingleChatScreen from "./SingleChatScreen";
+import MatchCard from "../../components/MatchCard";
 
-export default function ChatListScreen() {
+export default function ChatsScreen() {
   const navigation = useNavigation();
-  const [meId, setMeId] = useState(null);
   const [matches, setMatches] = useState([]);
   const [previews, setPreviews] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
-      // 1) get current user
+      // 1) Get current user session
       const {
         data: { session },
         error: sessErr,
       } = await supabase.auth.getSession();
-      if (sessErr || !session) return console.error(sessErr);
+      if (sessErr || !session) {
+        console.error("Error fetching session:", sessErr);
+        if (isMounted) setLoading(false);
+        return;
+      }
       const me = session.user;
-      if (!isMounted) return;
-      setMeId(me.id);
 
-      // 2) fetch mutual matches
-      let { data: matchRows, error: matchErr } = await supabase
+      // 2) Fetch mutual matches (just IDs)
+      const { data: matchRows, error: matchErr } = await supabase
         .from("matches")
         .select("user_a, user_b")
         .or(`user_a.eq.${me.id},user_b.eq.${me.id}`);
-      if (matchErr) return console.error(matchErr);
+      if (matchErr) {
+        console.error("Error fetching matches:", matchErr);
+        if (isMounted) setLoading(false);
+        return;
+      }
 
       const otherIds = matchRows.map((m) =>
         m.user_a === me.id ? m.user_b : m.user_a
       );
 
-      // 3) fetch their user info + first image
+      // 3) Fetch full matched user profiles (all fields) + first image URL
       if (otherIds.length) {
         const { data: users, error: userErr } = await supabase
           .from("users")
-          .select("id, first_name")
+          .select(
+            `
+            id,
+            first_name,
+            age,
+            city,
+            country,
+            ethnicities,
+            relationship,
+            has_kids,
+            wants_kids,
+            religion,
+            alcohol,
+            cigarettes,
+            weed,
+            drugs,
+            bio,
+            user_images (
+              url
+            )
+          `
+          )
           .in("id", otherIds);
-        if (userErr) return console.error(userErr);
+        if (userErr) {
+          console.error("Error fetching user details:", userErr);
+          if (isMounted) setLoading(false);
+          return;
+        }
 
-        const { data: images, error: imgErr } = await supabase
-          .from("user_images")
-          .select("user_id, url")
-          .in("user_id", otherIds);
-        if (imgErr) return console.error(imgErr);
-
-        const matchedProfiles = users.map((u) => ({
+        const formatted = users.map((u) => ({
           id: u.id,
           firstName: u.first_name,
-          photoUrl: images.find((i) => i.user_id === u.id)?.url,
+          age: u.age,
+          location: { city: u.city, country: u.country },
+          ethnicities: u.ethnicities,
+          relationshipType: u.relationship,
+          hasKids: u.has_kids,
+          wantsKids: u.wants_kids,
+          religion: u.religion,
+          alcohol: u.alcohol,
+          cigarettes: u.cigarettes,
+          weed: u.weed,
+          drugs: u.drugs,
+          bio: u.bio,
+          photoUrl: u.user_images?.[0]?.url || null,
         }));
-        setMatches(matchedProfiles);
+
+        if (isMounted) setMatches(formatted);
+      } else {
+        if (isMounted) setMatches([]);
       }
 
-      // 4) fetch latest message per conversation for previews
-      //    we can query the messages table, grouped by the other user
-      let { data: msgs, error: msgErr } = await supabase.rpc(
-        "latest_messages",
-        { uid: me.id }
-      );
-      if (msgErr) return console.error(msgErr);
-      // expected return: [{other_id, content, sent_at}, ...]
-      if (isMounted) setPreviews(msgs);
+      // 4) (Optional) Fetch latest message previews via RPC—if function exists
+      try {
+        const { data: msgs, error: msgErr } = await supabase.rpc(
+          "latest_messages",
+          { uid: me.id }
+        );
+        if (msgErr) throw msgErr;
+        if (isMounted) setPreviews(msgs);
+      } catch (rpcError) {
+        console.warn(
+          "RPC latest_messages failed or not found. Skipping previews:",
+          rpcError
+        );
+        if (isMounted) setPreviews([]);
+      }
+
+      if (isMounted) setLoading(false);
     })();
 
     return () => {
@@ -82,9 +130,17 @@ export default function ChatListScreen() {
     };
   }, []);
 
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Matches strip */}
+      {/* Matches strip at top */}
       <View style={styles.matchesContainer}>
         <ScrollView
           horizontal
@@ -92,49 +148,36 @@ export default function ChatListScreen() {
           contentContainerStyle={styles.matchesScroll}
         >
           {matches.map((u) => (
-            <TouchableOpacity
+            <MatchCard
               key={u.id}
-              style={styles.matchItem}
+              firstName={u.firstName}
+              photoUrl={u.photoUrl}
               onPress={() =>
-                navigation.navigate("SingleChatScreen", {
-                  otherUserId: u.id,
-                })
+                navigation.navigate("OtherUserProfile", { user: u })
               }
-            >
-              {u.photoUrl ? (
-                <Image
-                  source={{ uri: u.photoUrl }}
-                  style={styles.matchAvatar}
-                />
-              ) : (
-                <View style={[styles.matchAvatar, styles.matchPlaceholder]} />
-              )}
-              <Text style={styles.matchName} numberOfLines={1}>
-                {u.firstName}
-              </Text>
-            </TouchableOpacity>
+            />
           ))}
 
-          {/* if no matches yet */}
           {matches.length === 0 && (
             <Text style={styles.noMatches}>No matches yet</Text>
           )}
         </ScrollView>
       </View>
 
-      {/* Message previews */}
+      {/* Chats (message previews) below */}
       <FlatList
         data={previews}
-        keyExtractor={(item) => item.other_id}
+        keyExtractor={(item) => item.other_id.toString()}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.previewItem}
             onPress={() =>
-              navigation.navigate("SingleChatsScreen", {
+              navigation.navigate("SingleChat", {
                 otherUserId: item.other_id,
               })
             }
           >
+            {/* You can replace this placeholder with the matched user's avatar if you have it */}
             <View style={styles.previewAvatarPlaceholder} />
             <View style={styles.previewText}>
               <Text style={styles.previewName}>{item.other_id}</Text>
@@ -152,13 +195,13 @@ export default function ChatListScreen() {
             <Text>No conversations yet</Text>
           </View>
         )}
+        contentContainerStyle={previews.length === 0 ? { flex: 1 } : undefined}
       />
     </View>
   );
 }
 
 const AVATAR_SIZE = 50;
-const MATCH_ITEM_WIDTH = 60;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
@@ -168,37 +211,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#ddd",
     paddingVertical: 8,
+    backgroundColor: "#fafafa",
   },
   matchesScroll: {
     paddingHorizontal: 12,
     alignItems: "center",
-  },
-  matchItem: {
-    width: MATCH_ITEM_WIDTH,
-    alignItems: "center",
-    marginRight: 12,
-  },
-  matchAvatar: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: "#eee",
-  },
-  matchPlaceholder: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  matchName: {
-    marginTop: 4,
-    fontSize: 12,
-    textAlign: "center",
   },
   noMatches: {
     color: "#777",
     fontSize: 14,
   },
 
-  /* Previews */
+  /* Message previews */
   previewItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -233,5 +257,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 40,
+  },
+
+  /* Centered loading state */
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
