@@ -1,5 +1,6 @@
 // src/screens/OtherUserProfile.jsx
-import React, { useRef, useState, useEffect } from "react";
+
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ScrollView,
@@ -11,6 +12,8 @@ import {
   StyleSheet,
   Dimensions,
   Button,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -18,69 +21,124 @@ import { supabase } from "../../Lib/supabase";
 
 export default function OtherUserProfile() {
   const navigation = useNavigation();
-  const { user } = useRoute().params;
+  const {
+    params: { user },
+  } = useRoute();
+  // “user” here contains only basic fields (firstName, age, etc.)
+  // We will fetch that user’s images from supabase on mount.
 
-  // 1) load the current signed-in user
   const [currentUser, setCurrentUser] = useState(null);
+  const [images, setImages] = useState([]); // array of image URLs for this other user
+  const [loadingImages, setLoadingImages] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // 1) Load the currently authenticated user (so we can “like”)
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error("getUser error:", error);
+      const {
+        data: { user: me },
+        error: meErr,
+      } = await supabase.auth.getUser();
+      if (meErr) {
+        console.error("getUser error:", meErr);
       } else {
-        console.log("Signed in as:", data.user);
-        setCurrentUser(data.user);
+        setCurrentUser(me);
       }
     })();
   }, []);
 
-  // 2) instrumented like handler
+  // 2) Fetch this “other user’s” images from user_images table
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        // Query all URLs for otherUser.id, ordered by uploaded_at ascending
+        const { data: imgs, error: imgErr } = await supabase
+          .from("user_images")
+          .select("url")
+          .eq("user_id", user.id)
+          .order("uploaded_at", { ascending: true });
+
+        if (imgErr) throw imgErr;
+
+        if (isMounted) {
+          if (imgs && imgs.length > 0) {
+            // Map to array of URLs in chronological order
+            setImages(imgs.map((r) => r.url));
+          } else {
+            // Fallback: if no images in table, use their single “photoUrl” (passed via navigation)
+            setImages([user.photoUrl]);
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching other user images:", e);
+        if (isMounted) {
+          Alert.alert("Error", "Could not load user images.");
+          // still set something so carousel doesn’t break
+          setImages([user.photoUrl]);
+        }
+      } finally {
+        if (isMounted) setLoadingImages(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user.id, user.photoUrl]);
+
+  // 3) “Like” handler, unchanged
   const handleLike = async () => {
-    console.log("handleLike()", { currentUser, target: user.id });
     if (!currentUser) {
       console.warn("You must be signed in to like someone.");
       return;
     }
-    const payload = {
-      liker_id: currentUser.id,
-      likee_id: user.id,
-    };
-    const { data: insertData, error: insertError } = await supabase
-      .from("likes")
-      .insert([payload], { returning: "representation" });
-    console.log("💾 insert response:", { insertData, insertError });
-    if (insertError) {
-      alert(`Could not like: ${insertError.message}`);
-    } else {
-      alert(`You liked ${user.firstName}!`);
+    try {
+      const payload = {
+        liker_id: currentUser.id,
+        likee_id: user.id,
+      };
+      const { data: insertData, error: insertError } = await supabase
+        .from("likes")
+        .insert([payload], { returning: "representation" });
+      if (insertError) {
+        alert(`Could not like: ${insertError.message}`);
+      } else {
+        alert(`You liked ${user.firstName}!`);
+      }
+    } catch (e) {
+      console.error("Like Error:", e);
+      alert("Could not like user.");
     }
   };
 
-  const images = (user.imageUrls && user.imageUrls.slice(0, 6)) || [
-    user.photoUrl,
-  ];
+  // Carousel controls
   const flatListRef = useRef(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-
   const onNext = () => {
     if (currentIndex < images.length - 1) {
       flatListRef.current.scrollToIndex({ index: currentIndex + 1 });
       setCurrentIndex((i) => i + 1);
     }
   };
-
   const onPrev = () => {
     if (currentIndex > 0) {
       flatListRef.current.scrollToIndex({ index: currentIndex - 1 });
       setCurrentIndex((i) => i - 1);
     }
   };
-
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems.length) {
       setCurrentIndex(viewableItems[0].index);
     }
   }).current;
+
+  if (loadingImages) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -139,14 +197,23 @@ export default function OtherUserProfile() {
           <Text>Weed: {user.weed}</Text>
           <Text>Drugs: {user.drugs}</Text>
 
-          <Button
-            title="Send Message"
-            onPress={() =>
-              navigation.navigate("SingleChat", { otherUser: user })
-            }
-          />
-          <Button title="Like" onPress={handleLike} />
-          <Button title="Dislike" onPress={() => console.log("Disliked")} />
+          <View style={{ marginTop: 20 }}>
+            <Button
+              title="Send Message"
+              onPress={() =>
+                navigation.navigate("SingleChat", { otherUser: user })
+              }
+            />
+            <View style={{ height: 12 }} />
+            <Button title="Like" onPress={handleLike} />
+            <View style={{ height: 12 }} />
+            <Button
+              title="Dislike"
+              onPress={() => {
+                console.log("Disliked");
+              }}
+            />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -163,6 +230,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 20,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   carouselContainer: {
     position: "relative",
