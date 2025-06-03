@@ -1,16 +1,16 @@
 // src/screens/LikedBy.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   FlatList,
   View,
   Text,
-  Image,
-  TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
   Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { supabase } from "../../Lib/supabase";
 import LikedByCard from "../../components/LikedByCard";
 
 const { width } = Dimensions.get("window");
@@ -19,85 +19,133 @@ const CARD_WIDTH = (width - 48) / 2;
 // make cards 20% taller than wide
 const CARD_HEIGHT = CARD_WIDTH * 1.2;
 
-const DUMMY = [
-  {
-    id: "1",
-    firstName: "Alice",
-    age: 27,
-    location: { city: "London", country: "UK" },
-    ethnicities: ["Asian", "White"],
-    relationshipType: "Long-term",
-    hasKids: false,
-    wantsKids: true,
-    religion: "None",
-    alcohol: "Socially",
-    cigarettes: "Never",
-    weed: "Often",
-    drugs: "Never",
-    photoUrl:
-      "https://img.buzzfeed.com/buzzfeed-static/static/2019-10/21/13/asset/bca59df568fc/sub-buzz-4034-1571664623-1.jpg",
-  },
-  {
-    id: "2",
-    firstName: "Beth",
-    age: 30,
-    location: { city: "Manchester", country: "UK" },
-    ethnicities: ["Black"],
-    relationshipType: "Long-term",
-    hasKids: true,
-    wantsKids: false,
-    religion: "Christian",
-    alcohol: "Never",
-    cigarettes: "Socially",
-    weed: "Never",
-    drugs: "Never",
-    photoUrl:
-      "https://i.redd.it/how-do-i-achieve-the-ig-baddie-aesthetic-pls-drop-your-best-v0-8pjv85ei5hya1.jpg?width=1170&format=pjpg&auto=webp&s=65f4401350e38bd73a294defbf8e86893dd93c28",
-  },
-  {
-    id: "3",
-    firstName: "Chloe",
-    age: 24,
-    location: { city: "Birmingham", country: "UK" },
-    ethnicities: ["Hispanic"],
-    relationshipType: "Friends",
-    hasKids: false,
-    wantsKids: true,
-    religion: "Buddhist",
-    alcohol: "Never",
-    cigarettes: "Never",
-    weed: "Socially",
-    drugs: "Never",
-    photoUrl:
-      "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg",
-  },
-  {
-    id: "4",
-    firstName: "Diana",
-    age: 35,
-    location: { city: "Leeds", country: "UK" },
-    ethnicities: ["White"],
-    relationshipType: "Long-term",
-    hasKids: true,
-    wantsKids: true,
-    religion: "None",
-    alcohol: "Socially",
-    cigarettes: "Often",
-    weed: "Never",
-    drugs: "Never",
-    photoUrl:
-      "https://cdn.britannica.com/67/194367-050-908BD6E8/Diana-princess-Wales-1989.jpg",
-  },
-];
-
 export default function LikedBy() {
   const navigation = useNavigation();
+  const [likedUsers, setLikedUsers] = useState([]); // real data instead of DUMMY
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      try {
+        // 1) Get current user's session
+        const {
+          data: { session },
+          error: sessErr,
+        } = await supabase.auth.getSession();
+        if (sessErr || !session) {
+          console.error("Could not get session:", sessErr);
+          if (isMounted) setLoading(false);
+          return;
+        }
+        const me = session.user;
+
+        // 2) Fetch all "likes" where likee_id === current user's ID
+        const { data: likesRows, error: likesErr } = await supabase
+          .from("likes")
+          .select("liker_id")
+          .eq("likee_id", me.id);
+        if (likesErr) {
+          console.error("Error fetching likes for current user:", likesErr);
+          if (isMounted) setLoading(false);
+          return;
+        }
+
+        // 3) Extract array of user IDs who liked the current user
+        const likerIds = likesRows.map((row) => row.liker_id);
+
+        // 4) If no one has liked yet, clear array and finish
+        if (likerIds.length === 0) {
+          if (isMounted) {
+            setLikedUsers([]);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // 5) Fetch user profiles for those likerIds, including their first image
+        //    We select all columns we need plus user_images (joined) to get at least one URL
+        const { data: usersData, error: usersErr } = await supabase
+          .from("users")
+          .select(
+            `
+            id,
+            first_name,
+            age,
+            city,
+            country,
+            ethnicities,
+            relationship,
+            has_kids,
+            wants_kids,
+            religion,
+            alcohol,
+            cigarettes,
+            weed,
+            drugs,
+            bio,
+            user_images (
+              url
+            )
+          `
+          )
+          .in("id", likerIds);
+
+        if (usersErr) {
+          console.error("Error fetching user profiles:", usersErr);
+          if (isMounted) setLoading(false);
+          return;
+        }
+
+        // 6) Massage data into the shape that LikedByCard expects
+        const formatted = usersData.map((u) => ({
+          id: u.id,
+          firstName: u.first_name,
+          age: u.age,
+          location: { city: u.city, country: u.country },
+          ethnicities: u.ethnicities,
+          relationshipType: u.relationship,
+          hasKids: u.has_kids,
+          wantsKids: u.wants_kids,
+          religion: u.religion,
+          alcohol: u.alcohol,
+          cigarettes: u.cigarettes,
+          weed: u.weed,
+          drugs: u.drugs,
+          // take the first user_image URL if present
+          photoUrl: u.user_images?.[0]?.url || null,
+        }));
+
+        if (isMounted) {
+          setLikedUsers(formatted);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Unexpected error in LikedBy useEffect:", err);
+        if (isMounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 7) Show loading spinner while fetching
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <Text style={styles.section}>Liked By</Text>
       <FlatList
-        data={DUMMY}
+        data={likedUsers}
         keyExtractor={(u) => u.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
@@ -110,6 +158,11 @@ export default function LikedBy() {
               navigation.navigate("OtherUserProfile", { user: item })
             }
           />
+        )}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.noMatches}>No one has liked you yet.</Text>
+          </View>
         )}
       />
     </SafeAreaView>
