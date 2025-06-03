@@ -20,6 +20,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../Lib/supabase";
 import { useNavigation } from "@react-navigation/native";
+import * as FileSystem from "expo-file-system";
+import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
 
 const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get("window");
@@ -104,54 +106,85 @@ function EditProfileScreen() {
     })();
   }, []);
 
-  // Pick & upload to Storage → insert into user_images
+  // <--- Replace this function with the fetch(...) approach to get a real Blob --->
   const pickAndSaveImage = async (idx) => {
     try {
+      // 1) Get current authenticated user
       const {
         data: { user },
         error: userErr,
       } = await supabase.auth.getUser();
       if (userErr || !user) throw userErr || new Error("No user");
 
+      // 2) Launch image library, requesting base64 data
       const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType,
+        mediaTypes: ["images"],
         quality: 0.7,
+        base64: true, // <–– must ask for base64
       });
-      if (res.cancelled) return;
+      if (res.canceled) return; // user aborted
 
-      // upload
-      const filePath = `${user.id}/${Date.now()}.jpg`;
+      // 3) Grab the first asset and its base64 string
+      const asset = res.assets[0];
+      const { uri: localUri, base64: b64String, fileName } = asset;
+      if (!b64String) {
+        throw new Error("No base64 data returned from picker");
+      }
+
+      // 4) Determine MIME type (png vs jpeg) by file extension (if available)
+      const lower = (fileName || localUri).toLowerCase();
+      const isPng = lower.endsWith(".png");
+      const mimeType = isPng ? "image/png" : "image/jpeg";
+      const extension = isPng ? "png" : "jpg";
+
+      // 5) Decode the base64 string into an ArrayBuffer
+      const arrayBuffer = base64ToArrayBuffer(b64String);
+
+      // 6) Log buffer length to confirm it’s non-zero
+      console.log(
+        "📦 ArrayBuffer byteLength:",
+        arrayBuffer.byteLength,
+        "mimeType:",
+        mimeType
+      );
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error("Decoded ArrayBuffer is 0 bytes!");
+      }
+
+      // 7) Build a unique file path in your Supabase bucket
+      const filePath = `${user.id}/${Date.now()}.${extension}`;
+
+      // 8) Upload the raw ArrayBuffer to Supabase Storage
       const { error: upErr } = await supabase.storage
         .from("simple-dating-user-images")
-        .upload(filePath, {
-          uri: res.uri,
-          name: filePath,
-          type: "image/jpeg",
+        .upload(filePath, arrayBuffer, {
+          contentType: mimeType,
         });
       if (upErr) throw upErr;
 
-      // get public URL
+      // 9) Get the public URL of the uploaded image
       const {
         data: { publicUrl },
       } = supabase.storage
         .from("simple-dating-user-images")
         .getPublicUrl(filePath);
 
-      // insert record
+      // 10) Insert the new record into your `user_images` table
       const { error: dbErr } = await supabase
         .from("user_images")
         .insert([{ user_id: user.id, url: publicUrl }]);
       if (dbErr) throw dbErr;
 
-      // update local
+      // 11) Update local state so the UI reflects the new image immediately
       const copy = [...images];
       copy[idx] = publicUrl;
       setImages(copy);
     } catch (e) {
-      console.error(e);
+      console.error("❌ pickAndSaveImage error:", e);
       Alert.alert("Error", "Could not upload image");
     }
   };
+  // <--- end of pickAndSaveImage replacement --->
 
   // Upsert the users table
   const updateProfile = async () => {
