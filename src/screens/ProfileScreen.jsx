@@ -1,4 +1,5 @@
 // src/screens/ProfileScreen.jsx
+
 import React, { useState, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -20,7 +21,6 @@ import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../Lib/supabase";
 import { useNavigation } from "@react-navigation/native";
-import * as FileSystem from "expo-file-system";
 import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
 
 const Tab = createMaterialTopTabNavigator();
@@ -30,6 +30,7 @@ const IMAGE_HEIGHT = width * 1.2;
 function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
+
   // Form state
   const [images, setImages] = useState(Array(6).fill(null));
   const [firstName, setFirstName] = useState("");
@@ -68,7 +69,7 @@ function EditProfileScreen() {
           .maybeSingle();
         if (usrErr) throw usrErr;
 
-        // 3) Fetch user_images
+        // 3) Fetch user_images in ascending order (oldest first)
         const { data: imgs, error: imgErr } = await supabase
           .from("user_images")
           .select("url")
@@ -91,6 +92,7 @@ function EditProfileScreen() {
         setCigarettes(usr.cigarettes || "");
         setWeed(usr.weed || "");
         setDrugs(usr.drugs || "");
+
         // 6 image slots: use existing URLs, then null placeholders
         const existing = imgs.map((r) => r.url);
         const slots = Array(6)
@@ -106,7 +108,7 @@ function EditProfileScreen() {
     })();
   }, []);
 
-  // <--- Replace this function with the fetch(...) approach to get a real Blob --->
+  // Replace previous pickAndSaveImage with this:
   const pickAndSaveImage = async (idx) => {
     try {
       // 1) Get current authenticated user
@@ -120,7 +122,7 @@ function EditProfileScreen() {
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.7,
-        base64: true, // <–– must ask for base64
+        base64: true, // must ask for base64
       });
       if (res.canceled) return; // user aborted
 
@@ -131,16 +133,25 @@ function EditProfileScreen() {
         throw new Error("No base64 data returned from picker");
       }
 
-      // 4) Determine MIME type (png vs jpeg) by file extension (if available)
-      const lower = (fileName || localUri).toLowerCase();
-      const isPng = lower.endsWith(".png");
-      const mimeType = isPng ? "image/png" : "image/jpeg";
-      const extension = isPng ? "png" : "jpg";
+      // 4) Determine MIME type by file extension (png, gif, jpg, etc.)
+      let lower = (fileName || localUri).toLowerCase();
+      let isPng = lower.endsWith(".png");
+      let isGif = lower.endsWith(".gif");
+      let extension, mimeType;
+      if (isPng) {
+        extension = "png";
+        mimeType = "image/png";
+      } else if (isGif) {
+        extension = "gif";
+        mimeType = "image/gif";
+      } else {
+        // Default to JPEG if missing or any other extension
+        extension = "jpg";
+        mimeType = "image/jpeg";
+      }
 
       // 5) Decode the base64 string into an ArrayBuffer
       const arrayBuffer = base64ToArrayBuffer(b64String);
-
-      // 6) Log buffer length to confirm it’s non-zero
       console.log(
         "📦 ArrayBuffer byteLength:",
         arrayBuffer.byteLength,
@@ -151,10 +162,10 @@ function EditProfileScreen() {
         throw new Error("Decoded ArrayBuffer is 0 bytes!");
       }
 
-      // 7) Build a unique file path in your Supabase bucket
+      // 6) Build a unique file path in your Supabase bucket
       const filePath = `${user.id}/${Date.now()}.${extension}`;
 
-      // 8) Upload the raw ArrayBuffer to Supabase Storage
+      // 7) Upload the raw ArrayBuffer to Supabase Storage
       const { error: upErr } = await supabase.storage
         .from("simple-dating-user-images")
         .upload(filePath, arrayBuffer, {
@@ -162,20 +173,20 @@ function EditProfileScreen() {
         });
       if (upErr) throw upErr;
 
-      // 9) Get the public URL of the uploaded image
+      // 8) Get the public URL of the uploaded image
       const {
         data: { publicUrl },
       } = supabase.storage
         .from("simple-dating-user-images")
         .getPublicUrl(filePath);
 
-      // 10) Insert the new record into your `user_images` table
+      // 9) Insert the new record into your `user_images` table
       const { error: dbErr } = await supabase
         .from("user_images")
         .insert([{ user_id: user.id, url: publicUrl }]);
       if (dbErr) throw dbErr;
 
-      // 11) Update local state so the UI reflects the new image immediately
+      // 10) Update local state so the UI reflects the new image immediately
       const copy = [...images];
       copy[idx] = publicUrl;
       setImages(copy);
@@ -184,7 +195,7 @@ function EditProfileScreen() {
       Alert.alert("Error", "Could not upload image");
     }
   };
-  // <--- end of pickAndSaveImage replacement --->
+  // End of pickAndSaveImage replacement
 
   // Upsert the users table
   const updateProfile = async () => {
@@ -427,6 +438,8 @@ function PreviewProfileScreen() {
         }
 
         // 4) Fetch all user_images for this user (may be empty initially)
+        //    **We explicitly order by `uploaded_at` ascending so that
+        //     our first‐uploaded image is shown first in the carousel.**
         const { data: imgs, error: imgErr } = await supabase
           .from("user_images")
           .select("url")
@@ -450,46 +463,54 @@ function PreviewProfileScreen() {
     return <ActivityIndicator style={{ marginTop: 50 }} />;
   }
 
-  // Because we upserted a blank row above, `profile` will never be null here
+  // At this point, `profile` is never null (we upserted a blank if needed).
+  // `images` is an array of URLs sorted by uploaded_at ascending.
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <FlatList
-        data={images}
-        ref={carouselRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(_, i) => i.toString()}
-        onViewableItemsChanged={({ viewableItems }) =>
-          viewableItems[0] && setIndex(viewableItems[0].index)
-        }
-        viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item }} style={styles.image} />
+    // Wrap everything in a vertical ScrollView so that text can scroll beneath the carousel
+    <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+      <View style={styles.carouselContainer}>
+        <FlatList
+          data={images}
+          ref={carouselRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item, i) => i.toString()}
+          onViewableItemsChanged={({ viewableItems }) =>
+            viewableItems[0] && setIndex(viewableItems[0].index)
+          }
+          viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
+          renderItem={({ item }) => (
+            <Image source={{ uri: item }} style={styles.image} />
+          )}
+        />
+
+        {/* Left arrow */}
+        {index > 0 && (
+          <TouchableOpacity
+            style={[styles.arrow, styles.left]}
+            onPress={() =>
+              carouselRef.current?.scrollToIndex({ index: index - 1 })
+            }
+          >
+            <MaterialIcons name="chevron-left" size={36} />
+          </TouchableOpacity>
         )}
-      />
+        {/* Right arrow */}
+        {index < images.length - 1 && (
+          <TouchableOpacity
+            style={[styles.arrow, styles.right]}
+            onPress={() =>
+              carouselRef.current?.scrollToIndex({ index: index + 1 })
+            }
+          >
+            <MaterialIcons name="chevron-right" size={36} />
+          </TouchableOpacity>
+        )}
+      </View>
 
-      {index > 0 && (
-        <TouchableOpacity
-          style={[styles.arrow, styles.left]}
-          onPress={() =>
-            carouselRef.current?.scrollToIndex({ index: index - 1 })
-          }
-        >
-          <MaterialIcons name="chevron-left" size={36} />
-        </TouchableOpacity>
-      )}
-      {index < images.length - 1 && (
-        <TouchableOpacity
-          style={[styles.arrow, styles.right]}
-          onPress={() =>
-            carouselRef.current?.scrollToIndex({ index: index + 1 })
-          }
-        >
-          <MaterialIcons name="chevron-right" size={36} />
-        </TouchableOpacity>
-      )}
-
+      {/* Textual portion (scrollable) */}
       <View style={styles.info}>
         <Text style={styles.name}>
           {profile.first_name}, {profile.age}
@@ -512,7 +533,7 @@ function PreviewProfileScreen() {
         <Text>Weed: {profile.weed}</Text>
         <Text>Drugs: {profile.drugs}</Text>
       </View>
-    </SafeAreaView>
+    </ScrollView>
   );
 }
 
@@ -550,11 +571,16 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", justifyContent: "space-between" },
   safeArea: { flex: 1, backgroundColor: "#fff" },
-  info: { padding: 16 },
-  name: { fontSize: 24, fontWeight: "bold" },
-  location: { fontSize: 16, color: "#666", marginBottom: 12 },
-  bio: { marginTop: 4, fontSize: 14, color: "#333" },
-  image: { width, height: IMAGE_HEIGHT, resizeMode: "cover" },
+
+  // Wrap FlatList in this container so we can position arrows on top
+  carouselContainer: {
+    height: IMAGE_HEIGHT,
+  },
+  image: {
+    width: width,
+    height: IMAGE_HEIGHT,
+    resizeMode: "cover",
+  },
   arrow: {
     position: "absolute",
     top: "50%",
@@ -566,5 +592,10 @@ const styles = StyleSheet.create({
   },
   left: { left: 10 },
   right: { right: 10 },
-  scrollContent: { paddingBottom: 20 },
+
+  // Below the carousel, the text portion:
+  info: { padding: 16 },
+  name: { fontSize: 24, fontWeight: "bold" },
+  location: { fontSize: 16, color: "#666", marginBottom: 12 },
+  bio: { marginTop: 4, fontSize: 14, color: "#333" },
 });
