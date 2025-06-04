@@ -26,6 +26,7 @@ import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
 const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = width * 1.2;
+const BUCKET_NAME = "simple-dating-user-images";
 
 /** EDIT PROFILE SCREEN **/
 function EditProfileScreen() {
@@ -167,7 +168,7 @@ function EditProfileScreen() {
 
       // 7) Upload the raw ArrayBuffer to Supabase Storage
       const { error: upErr } = await supabase.storage
-        .from("simple-dating-user-images")
+        .from(BUCKET_NAME)
         .upload(filePath, arrayBuffer, {
           contentType: mimeType,
         });
@@ -176,9 +177,7 @@ function EditProfileScreen() {
       // 8) Get the public URL of the uploaded image
       const {
         data: { publicUrl },
-      } = supabase.storage
-        .from("simple-dating-user-images")
-        .getPublicUrl(filePath);
+      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
 
       // 9) Insert the new record into your `user_images` table
       const { error: dbErr } = await supabase
@@ -196,7 +195,7 @@ function EditProfileScreen() {
     }
   };
 
-  // Delete photo logic (unchanged)
+  // Delete photo logic (now also removes from Storage)
   const removeImage = async (idx) => {
     try {
       const {
@@ -208,7 +207,7 @@ function EditProfileScreen() {
       const urlToRemove = images[idx];
       if (!urlToRemove) return;
 
-      // Delete from user_images table
+      // 1) Delete from user_images table
       const { error: delErr } = await supabase
         .from("user_images")
         .delete()
@@ -216,8 +215,19 @@ function EditProfileScreen() {
         .eq("url", urlToRemove);
       if (delErr) throw delErr;
 
-      // Optionally: delete from storage bucket if needed
+      // 2) Delete actual file from Storage
+      // Derive filePath from public URL:
+      // public URL format: https://<project>.supabase.co/storage/v1/object/public/<BUCKET_NAME>/<filePath>
+      const parts = urlToRemove.split(`/${BUCKET_NAME}/`);
+      if (parts.length > 1) {
+        const filePath = parts[1];
+        const { error: storageErr } = await supabase.storage
+          .from(BUCKET_NAME)
+          .remove([filePath]);
+        if (storageErr) console.error("Storage remove error:", storageErr);
+      }
 
+      // 3) Update local state
       const copy = [...images];
       copy[idx] = null;
       setImages(copy);
@@ -227,16 +237,17 @@ function EditProfileScreen() {
     }
   };
 
-  // New: replace-within-one-flow logic
+  // New: single-flow replace logic (upload new first, then delete old)
   const replaceFlow = async (idx) => {
     try {
-      // 1) Let user pick new image
+      // 1) Get current authenticated user
       const {
         data: { user },
         error: userErr,
       } = await supabase.auth.getUser();
       if (userErr || !user) throw userErr || new Error("No user");
 
+      // 2) Launch image library, requesting base64 data
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.7,
@@ -244,12 +255,12 @@ function EditProfileScreen() {
       });
       if (res.canceled) return; // user canceled → do nothing
 
-      // 2) Got a new image → upload it first
+      // 3) Got a new image → upload it first
       const asset = res.assets[0];
       const { uri: localUri, base64: b64String, fileName } = asset;
       if (!b64String) throw new Error("No base64 data returned from picker");
 
-      // 3) Determine MIME & extension
+      // 4) Determine MIME type by file extension
       let lower = (fileName || localUri).toLowerCase();
       let isPng = lower.endsWith(".png");
       let isGif = lower.endsWith(".gif");
@@ -265,38 +276,47 @@ function EditProfileScreen() {
         mimeType = "image/jpeg";
       }
 
-      // 4) Decode & upload new image
+      // 5) Decode & upload new image
       const arrayBuffer = base64ToArrayBuffer(b64String);
       if (arrayBuffer.byteLength === 0)
         throw new Error("Decoded ArrayBuffer is 0 bytes!");
-      const filePath = `${user.id}/${Date.now()}.${extension}`;
+      const newFilePath = `${user.id}/${Date.now()}.${extension}`;
       const { error: upErr } = await supabase.storage
-        .from("simple-dating-user-images")
-        .upload(filePath, arrayBuffer, { contentType: mimeType });
+        .from(BUCKET_NAME)
+        .upload(newFilePath, arrayBuffer, { contentType: mimeType });
       if (upErr) throw upErr;
       const {
         data: { publicUrl: newUrl },
-      } = supabase.storage
-        .from("simple-dating-user-images")
-        .getPublicUrl(filePath);
+      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(newFilePath);
 
-      // 5) Insert new record into user_images
+      // 6) Insert new record into user_images
       const { error: dbErr } = await supabase
         .from("user_images")
         .insert([{ user_id: user.id, url: newUrl }]);
       if (dbErr) throw dbErr;
 
-      // 6) Remove old image from DB (so state can update)
+      // 7) Remove old record and its file
       const oldUrl = images[idx];
       if (oldUrl) {
+        // Delete old row
         await supabase
           .from("user_images")
           .delete()
           .eq("user_id", user.id)
           .eq("url", oldUrl);
+
+        // Delete old file from storage
+        const parts = oldUrl.split(`/${BUCKET_NAME}/`);
+        if (parts.length > 1) {
+          const oldFilePath = parts[1];
+          const { error: storageErr } = await supabase.storage
+            .from(BUCKET_NAME)
+            .remove([oldFilePath]);
+          if (storageErr) console.error("Old file remove error:", storageErr);
+        }
       }
 
-      // 7) Update local state to show new image
+      // 8) Update local state to show new image
       const copy = [...images];
       copy[idx] = newUrl;
       setImages(copy);
