@@ -109,7 +109,7 @@ function EditProfileScreen() {
     })();
   }, []);
 
-  // Replace previous pickAndSaveImage with this:
+  // Original add-new-photo flow
   const pickAndSaveImage = async (idx) => {
     try {
       // 1) Get current authenticated user
@@ -196,8 +196,7 @@ function EditProfileScreen() {
     }
   };
 
-  // ------------- ADDED: handle image press, replace and remove logic -------------
-
+  // Delete photo logic (unchanged)
   const removeImage = async (idx) => {
     try {
       const {
@@ -218,7 +217,6 @@ function EditProfileScreen() {
       if (delErr) throw delErr;
 
       // Optionally: delete from storage bucket if needed
-      // (derive file path from URL if you want to remove physical file)
 
       const copy = [...images];
       copy[idx] = null;
@@ -229,9 +227,83 @@ function EditProfileScreen() {
     }
   };
 
-  const replaceImage = async (idx) => {
-    await removeImage(idx);
-    await pickAndSaveImage(idx);
+  // New: replace-within-one-flow logic
+  const replaceFlow = async (idx) => {
+    try {
+      // 1) Let user pick new image
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      if (userErr || !user) throw userErr || new Error("No user");
+
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.7,
+        base64: true,
+      });
+      if (res.canceled) return; // user canceled → do nothing
+
+      // 2) Got a new image → upload it first
+      const asset = res.assets[0];
+      const { uri: localUri, base64: b64String, fileName } = asset;
+      if (!b64String) throw new Error("No base64 data returned from picker");
+
+      // 3) Determine MIME & extension
+      let lower = (fileName || localUri).toLowerCase();
+      let isPng = lower.endsWith(".png");
+      let isGif = lower.endsWith(".gif");
+      let extension, mimeType;
+      if (isPng) {
+        extension = "png";
+        mimeType = "image/png";
+      } else if (isGif) {
+        extension = "gif";
+        mimeType = "image/gif";
+      } else {
+        extension = "jpg";
+        mimeType = "image/jpeg";
+      }
+
+      // 4) Decode & upload new image
+      const arrayBuffer = base64ToArrayBuffer(b64String);
+      if (arrayBuffer.byteLength === 0)
+        throw new Error("Decoded ArrayBuffer is 0 bytes!");
+      const filePath = `${user.id}/${Date.now()}.${extension}`;
+      const { error: upErr } = await supabase.storage
+        .from("simple-dating-user-images")
+        .upload(filePath, arrayBuffer, { contentType: mimeType });
+      if (upErr) throw upErr;
+      const {
+        data: { publicUrl: newUrl },
+      } = supabase.storage
+        .from("simple-dating-user-images")
+        .getPublicUrl(filePath);
+
+      // 5) Insert new record into user_images
+      const { error: dbErr } = await supabase
+        .from("user_images")
+        .insert([{ user_id: user.id, url: newUrl }]);
+      if (dbErr) throw dbErr;
+
+      // 6) Remove old image from DB (so state can update)
+      const oldUrl = images[idx];
+      if (oldUrl) {
+        await supabase
+          .from("user_images")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("url", oldUrl);
+      }
+
+      // 7) Update local state to show new image
+      const copy = [...images];
+      copy[idx] = newUrl;
+      setImages(copy);
+    } catch (e) {
+      console.error("❌ replaceFlow error:", e);
+      Alert.alert("Error", "Could not replace photo");
+    }
   };
 
   const handleImagePress = (idx) => {
@@ -245,13 +317,12 @@ function EditProfileScreen() {
         "What would you like to do with this photo?",
         [
           { text: "Remove Photo", onPress: () => removeImage(idx) },
-          { text: "Replace Photo", onPress: () => replaceImage(idx) },
+          { text: "Replace Photo", onPress: () => replaceFlow(idx) },
           { text: "Cancel", style: "cancel" },
         ]
       );
     }
   };
-  // -------------------------------------------------------------------------------
 
   // Upsert the users table
   const updateProfile = async () => {
@@ -319,7 +390,7 @@ function EditProfileScreen() {
           <TouchableOpacity
             key={i}
             style={styles.imageSlot}
-            onPress={() => handleImagePress(i)} // UPDATED
+            onPress={() => handleImagePress(i)}
           >
             {uri ? (
               <Image source={{ uri }} style={styles.imageThumb} />
