@@ -27,6 +27,7 @@ const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = width * 1.2;
 
+/** EDIT PROFILE SCREEN **/
 function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
@@ -122,7 +123,7 @@ function EditProfileScreen() {
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.7,
-        base64: true, // must ask for base64
+        base64: true,
       });
       if (res.canceled) return; // user aborted
 
@@ -145,7 +146,6 @@ function EditProfileScreen() {
         extension = "gif";
         mimeType = "image/gif";
       } else {
-        // Default to JPEG if missing or any other extension
         extension = "jpg";
         mimeType = "image/jpeg";
       }
@@ -195,7 +195,63 @@ function EditProfileScreen() {
       Alert.alert("Error", "Could not upload image");
     }
   };
-  // End of pickAndSaveImage replacement
+
+  // ------------- ADDED: handle image press, replace and remove logic -------------
+
+  const removeImage = async (idx) => {
+    try {
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      if (userErr || !user) throw userErr || new Error("No user");
+
+      const urlToRemove = images[idx];
+      if (!urlToRemove) return;
+
+      // Delete from user_images table
+      const { error: delErr } = await supabase
+        .from("user_images")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("url", urlToRemove);
+      if (delErr) throw delErr;
+
+      // Optionally: delete from storage bucket if needed
+      // (derive file path from URL if you want to remove physical file)
+
+      const copy = [...images];
+      copy[idx] = null;
+      setImages(copy);
+    } catch (e) {
+      console.error("❌ removeImage error:", e);
+      Alert.alert("Error", "Could not remove photo");
+    }
+  };
+
+  const replaceImage = async (idx) => {
+    await removeImage(idx);
+    await pickAndSaveImage(idx);
+  };
+
+  const handleImagePress = (idx) => {
+    if (!images[idx]) {
+      // empty slot → pick new
+      pickAndSaveImage(idx);
+    } else {
+      // occupied → offer remove or replace
+      Alert.alert(
+        "Manage Photo",
+        "What would you like to do with this photo?",
+        [
+          { text: "Remove Photo", onPress: () => removeImage(idx) },
+          { text: "Replace Photo", onPress: () => replaceImage(idx) },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    }
+  };
+  // -------------------------------------------------------------------------------
 
   // Upsert the users table
   const updateProfile = async () => {
@@ -263,7 +319,7 @@ function EditProfileScreen() {
           <TouchableOpacity
             key={i}
             style={styles.imageSlot}
-            onPress={() => pickAndSaveImage(i)}
+            onPress={() => handleImagePress(i)} // UPDATED
           >
             {uri ? (
               <Image source={{ uri }} style={styles.imageThumb} />
@@ -378,6 +434,7 @@ function EditProfileScreen() {
   );
 }
 
+/** PREVIEW PROFILE SCREEN **/
 function PreviewProfileScreen() {
   const [images, setImages] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -463,11 +520,7 @@ function PreviewProfileScreen() {
     return <ActivityIndicator style={{ marginTop: 50 }} />;
   }
 
-  // At this point, `profile` is never null (we upserted a blank if needed).
-  // `images` is an array of URLs sorted by uploaded_at ascending.
-
   return (
-    // Wrap everything in a vertical ScrollView so that text can scroll beneath the carousel
     <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
       <View style={styles.carouselContainer}>
         <FlatList
@@ -486,7 +539,6 @@ function PreviewProfileScreen() {
           )}
         />
 
-        {/* Left arrow */}
         {index > 0 && (
           <TouchableOpacity
             style={[styles.arrow, styles.left]}
@@ -497,7 +549,6 @@ function PreviewProfileScreen() {
             <MaterialIcons name="chevron-left" size={36} />
           </TouchableOpacity>
         )}
-        {/* Right arrow */}
         {index < images.length - 1 && (
           <TouchableOpacity
             style={[styles.arrow, styles.right]}
@@ -510,7 +561,6 @@ function PreviewProfileScreen() {
         )}
       </View>
 
-      {/* Textual portion (scrollable) */}
       <View style={styles.info}>
         <Text style={styles.name}>
           {profile.first_name}, {profile.age}
@@ -572,7 +622,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between" },
   safeArea: { flex: 1, backgroundColor: "#fff" },
 
-  // Wrap FlatList in this container so we can position arrows on top
   carouselContainer: {
     height: IMAGE_HEIGHT,
   },
@@ -593,7 +642,6 @@ const styles = StyleSheet.create({
   left: { left: 10 },
   right: { right: 10 },
 
-  // Below the carousel, the text portion:
   info: { padding: 16 },
   name: { fontSize: 24, fontWeight: "bold" },
   location: { fontSize: 16, color: "#666", marginBottom: 12 },
