@@ -1,9 +1,8 @@
 // src/Lib/supabase.js
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@env";
-// src/Lib/supabase.js
-
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -16,6 +15,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: {
     fetch: global.fetch,
   },
-  // disable realtime in RN so ws doesn’t accidentally get pulled in
-  realtime: { enabled: false },
+  // *** ENABLE Supabase Realtime *** 
+  realtime: { enabled: true },
 });

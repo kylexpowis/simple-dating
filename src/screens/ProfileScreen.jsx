@@ -158,7 +158,7 @@ function EditProfileScreen() {
         arrayBuffer.byteLength,
         "mimeType:",
         mimeType
-      );
+      ); 
       if (arrayBuffer.byteLength === 0) {
         throw new Error("Decoded ArrayBuffer is 0 bytes!");
       }
