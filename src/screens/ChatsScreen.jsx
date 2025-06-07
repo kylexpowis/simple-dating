@@ -1,5 +1,4 @@
 // src/screens/ChatsScreen.jsx
-
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -8,16 +7,16 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  TouchableOpacity,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
 import MatchCard from "../../components/MatchCard";
+import SingleChatCard from "../../components/SingleChatCard";
 
 export default function ChatsScreen() {
   const navigation = useNavigation();
   const [matches, setMatches] = useState([]);
-  const [previews, setPreviews] = useState([]);
+  const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,11 +35,13 @@ export default function ChatsScreen() {
       }
       const me = session.user;
 
-      // 2) Fetch mutual matches (just IDs)
+      // 2) Fetch all matches (both messaged and unmatched)
       const { data: matchRows, error: matchErr } = await supabase
         .from("matches")
-        .select("user_a, user_b")
-        .or(`user_a.eq.${me.id},user_b.eq.${me.id}`);
+        .select("id, user_a, user_b, matched_at")
+        .or(`user_a.eq.${me.id},user_b.eq.${me.id}`)
+        .order("matched_at", { ascending: false });
+
       if (matchErr) {
         console.error("Error fetching matches:", matchErr);
         if (isMounted) setLoading(false);
@@ -51,7 +52,7 @@ export default function ChatsScreen() {
         m.user_a === me.id ? m.user_b : m.user_a
       );
 
-      // 3) Fetch full matched user profiles + first image URL
+      // 3) Fetch full user profiles for all matches
       if (otherIds.length) {
         const { data: users, error: userErr } = await supabase
           .from("users")
@@ -60,67 +61,100 @@ export default function ChatsScreen() {
             id,
             first_name,
             age,
-            city,
-            country,
-            ethnicities,
-            relationship,
-            has_kids,
-            wants_kids,
-            religion,
-            alcohol,
-            cigarettes,
-            weed,
-            drugs,
-            bio,
-            user_images (
-              url
-            )
+            user_images (url)
           `
           )
           .in("id", otherIds);
+
         if (userErr) {
           console.error("Error fetching user details:", userErr);
           if (isMounted) setLoading(false);
           return;
         }
 
-        const formatted = users.map((u) => ({
-          id: u.id,
-          firstName: u.first_name,
-          age: u.age,
-          location: { city: u.city, country: u.country },
-          ethnicities: u.ethnicities,
-          relationshipType: u.relationship,
-          hasKids: u.has_kids,
-          wantsKids: u.wants_kids,
-          religion: u.religion,
-          alcohol: u.alcohol,
-          cigarettes: u.cigarettes,
-          weed: u.weed,
-          drugs: u.drugs,
-          bio: u.bio,
-          photoUrl: u.user_images?.[0]?.url || null,
-        }));
+        const userMap = users.reduce((acc, user) => {
+          acc[user.id] = {
+            id: user.id,
+            firstName: user.first_name,
+            age: user.age,
+            photoUrl: user.user_images?.[0]?.url || null,
+          };
+          return acc;
+        }, {});
 
-        if (isMounted) setMatches(formatted);
+        // 4) Fetch chats to determine which matches have messages
+        const { data: userChats, error: chatsErr } = await supabase
+          .from("chats")
+          .select("match_id")
+          .in(
+            "match_id",
+            matchRows.map((m) => m.id)
+          );
+
+        if (chatsErr) {
+          console.error("Error fetching chats:", chatsErr);
+          if (isMounted) setLoading(false);
+          return;
+        }
+
+        const chatMatchIds = new Set(userChats.map((c) => c.match_id));
+
+        // 5) Separate into matches (no messages) and chats (has messages)
+        const newMatches = [];
+        const newChats = [];
+
+        matchRows.forEach((match) => {
+          const otherUserId =
+            match.user_a === me.id ? match.user_b : match.user_a;
+          const user = userMap[otherUserId];
+
+          if (user) {
+            if (chatMatchIds.has(match.id)) {
+              newChats.push({
+                matchId: match.id,
+                user,
+                lastMessage: null, // Will be updated below
+              });
+            } else {
+              newMatches.push(user);
+            }
+          }
+        });
+
+        // 6) Fetch last messages for chats
+        if (newChats.length > 0) {
+          const { data: lastMessages, error: messagesErr } = await supabase
+            .from("messages")
+            .select("id, chat_id, content, sent_at, sender_id")
+            .in(
+              "chat_id",
+              userChats.map((c) => c.match_id)
+            )
+            .order("sent_at", { ascending: false });
+
+          if (!messagesErr && lastMessages) {
+            const messagesByChatId = lastMessages.reduce((acc, message) => {
+              if (!acc[message.chat_id]) {
+                acc[message.chat_id] = message;
+              }
+              return acc;
+            }, {});
+
+            newChats.forEach((chat) => {
+              chat.lastMessage = messagesByChatId[chat.matchId];
+            });
+          }
+        }
+
+        if (isMounted) {
+          setMatches(newMatches);
+          setChats(newChats);
+        }
       } else {
-        if (isMounted) setMatches([]);
-      }
-
-      // 4) (Optional) Fetch message previews via RPC
-      try {
-        const { data: msgs, error: msgErr } = await supabase.rpc(
-          "latest_messages",
-          { uid: me.id }
-        );
-        if (msgErr) throw msgErr;
-        if (isMounted) setPreviews(msgs);
-      } catch (rpcError) {
-        console.warn(
-          "RPC latest_messages not found, skipping previews:",
-          rpcError
-        );
-        if (isMounted) setPreviews([]);
+        if (isMounted) {
+          setMatches([]);
+          setChats([]);
+        }
       }
 
       if (isMounted) setLoading(false);
@@ -141,75 +175,51 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Matches strip at top */}
-      <View style={styles.matchesContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.matchesScroll}
-        >
-          {matches.map((u) => (
-            <MatchCard
-              key={u.id}
-              firstName={u.firstName}
-              photoUrl={u.photoUrl}
-              onPress={() =>
-                navigation.navigate("Home", {
-                  screen: "OtherUserProfile",
-                  params: { user: u },
-                })
-              }
-            />
-          ))}
-
-          {matches.length === 0 && (
-            <Text style={styles.noMatches}>No matches yet</Text>
-          )}
-        </ScrollView>
-      </View>
-
-      {/* Chats (message previews) below */}
-      <FlatList
-        data={previews}
-        keyExtractor={(item) => item.other_id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.previewItem}
-            onPress={() =>
-              navigation.navigate("Home", {
-                screen: "SingleChatScreen",
-                params: { otherUser: { id: item.other_id } },
-              })
-            }
+      {/* Matches strip at top - only shows unmatched connections */}
+      {matches.length > 0 && (
+        <View style={styles.matchesContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.matchesScroll}
           >
-            <View style={styles.previewAvatarPlaceholder} />
-            <View style={styles.previewText}>
-              <Text style={styles.previewName}>{item.other_id}</Text>
-              <Text style={styles.previewMessage} numberOfLines={1}>
-                {item.content}
-              </Text>
-            </View>
-            <Text style={styles.previewTime}>
-              {new Date(item.sent_at).toLocaleTimeString()}
-            </Text>
-          </TouchableOpacity>
+            {matches.map((u) => (
+              <MatchCard
+                key={u.id}
+                firstName={u.firstName}
+                photoUrl={u.photoUrl}
+                onPress={() =>
+                  navigation.navigate("Home", {
+                    screen: "OtherUserProfile",
+                    params: { user: u },
+                  })
+                }
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Chats list - shows all messaged connections */}
+      <FlatList
+        data={chats}
+        keyExtractor={(item) => item.matchId.toString()}
+        renderItem={({ item }) => (
+          <SingleChatCard user={item.user} lastMessage={item.lastMessage} />
         )}
         ListEmptyComponent={() => (
           <View style={styles.empty}>
             <Text>No conversations yet</Text>
           </View>
         )}
-        contentContainerStyle={previews.length === 0 ? { flex: 1 } : undefined}
+        contentContainerStyle={chats.length === 0 ? { flex: 1 } : undefined}
       />
     </View>
   );
 }
 
-const AVATAR_SIZE = 50;
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-
   matchesContainer: {
     borderBottomWidth: 1,
     borderColor: "#ddd",
@@ -224,43 +234,12 @@ const styles = StyleSheet.create({
     color: "#777",
     fontSize: 14,
   },
-
-  previewItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
-  },
-  previewAvatarPlaceholder: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: "#ddd",
-    marginRight: 12,
-  },
-  previewText: {
-    flex: 1,
-  },
-  previewName: {
-    fontWeight: "600",
-  },
-  previewMessage: {
-    color: "#555",
-    marginTop: 2,
-  },
-  previewTime: {
-    fontSize: 12,
-    color: "#999",
-    marginLeft: 8,
-  },
   empty: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 40,
   },
-
   center: {
     flex: 1,
     justifyContent: "center",
