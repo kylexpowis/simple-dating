@@ -1,4 +1,5 @@
 // src/screens/LikedBy.jsx
+
 import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
@@ -21,7 +22,7 @@ const CARD_HEIGHT = CARD_WIDTH * 1.2;
 
 export default function LikedBy() {
   const navigation = useNavigation();
-  const [likedUsers, setLikedUsers] = useState([]); // real data instead of DUMMY
+  const [likedUsers, setLikedUsers] = useState([]); // filtered data
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,21 +43,34 @@ export default function LikedBy() {
         const me = session.user;
 
         // 2) Fetch all "likes" where likee_id === current user's ID
-        const { data: likesRows, error: likesErr } = await supabase
+        const { data: likesRows = [], error: likesErr } = await supabase
           .from("likes")
           .select("liker_id")
           .eq("likee_id", me.id);
         if (likesErr) {
-          console.error("Error fetching likes for current user:", likesErr);
+          console.error("Error fetching who liked me:", likesErr);
           if (isMounted) setLoading(false);
           return;
         }
+        const likerIds = likesRows.map((r) => r.liker_id);
 
-        // 3) Extract array of user IDs who liked the current user
-        const likerIds = likesRows.map((row) => row.liker_id);
+        // 3) Fetch all "likes" where I am the liker (i.e. who I've liked)
+        const { data: myLikesRows = [], error: myLikesErr } = await supabase
+          .from("likes")
+          .select("likee_id")
+          .eq("liker_id", me.id);
+        if (myLikesErr) {
+          console.error("Error fetching who I liked:", myLikesErr);
+          if (isMounted) setLoading(false);
+          return;
+        }
+        const myLikedIds = new Set(myLikesRows.map((r) => r.likee_id));
 
-        // 4) If no one has liked yet, clear array and finish
-        if (likerIds.length === 0) {
+        // 4) Exclude any likerIds that I have already liked
+        const filteredIds = likerIds.filter((id) => !myLikedIds.has(id));
+
+        // 5) If none remain, clear and finish
+        if (filteredIds.length === 0) {
           if (isMounted) {
             setLikedUsers([]);
             setLoading(false);
@@ -64,9 +78,8 @@ export default function LikedBy() {
           return;
         }
 
-        // 5) Fetch user profiles for those likerIds, including their first image
-        //    We select all columns we need plus user_images (joined) to get at least one URL
-        const { data: usersData, error: usersErr } = await supabase
+        // 6) Fetch user profiles for filteredIds, including first image
+        const { data: usersData = [], error: usersErr } = await supabase
           .from("users")
           .select(
             `
@@ -85,20 +98,17 @@ export default function LikedBy() {
             weed,
             drugs,
             bio,
-            user_images (
-              url
-            )
+            user_images ( url )
           `
           )
-          .in("id", likerIds);
-
+          .in("id", filteredIds);
         if (usersErr) {
           console.error("Error fetching user profiles:", usersErr);
           if (isMounted) setLoading(false);
           return;
         }
 
-        // 6) Massage data into the shape that LikedByCard expects
+        // 7) Massage data into the shape that LikedByCard expects
         const formatted = usersData.map((u) => ({
           id: u.id,
           firstName: u.first_name,
@@ -113,6 +123,7 @@ export default function LikedBy() {
           cigarettes: u.cigarettes,
           weed: u.weed,
           drugs: u.drugs,
+          bio: u.bio,
           // take the first user_image URL if present
           photoUrl: u.user_images?.[0]?.url || null,
         }));
@@ -132,7 +143,7 @@ export default function LikedBy() {
     };
   }, []);
 
-  // 7) Show loading spinner while fetching
+  // show spinner while fetching
   if (loading) {
     return (
       <View style={styles.center}>
@@ -188,25 +199,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 16,
   },
-  card: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT + 40, // height of image + space for text
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  cardImage: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 8,
-    backgroundColor: "#eee",
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 40,
   },
-  cardInfo: {
-    marginTop: 8,
-  },
-  cardName: {
+  noMatches: {
     fontSize: 16,
-    fontWeight: "600",
-  },
-  cardLocation: {
-    fontSize: 14,
-    color: "#888",
+    color: "#665",
   },
 });
