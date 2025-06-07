@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../Lib/supabase";
@@ -16,125 +18,210 @@ import { useRoute } from "@react-navigation/native";
 
 export default function SingleChatScreen() {
   const route = useRoute();
-  const { otherUser } = route.params; // { id, firstName, … }
+
+  let otherUser = route.params?.otherUser || null;
+  if (!otherUser && route.params?.otherUserId) {
+    otherUser = { id: route.params.otherUserId };
+  }
 
   const [me, setMe] = useState(null);
   const [chatId, setChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [error, setError] = useState(null);
+  const [isSending, setIsSending] = useState(false);
   const flatListRef = useRef();
   const channelRef = useRef();
 
-  // 1️⃣ On mount: get session → find or create chatId → load history → subscribe
   useEffect(() => {
     let mounted = true;
+    setError(null);
+
     (async () => {
-      // a) get session & me
-      const {
-        data: { session },
-        error: sessErr,
-      } = await supabase.auth.getSession();
-      if (sessErr || !session) return console.error("No session", sessErr);
-      const me = session.user;
-      if (!mounted) return;
-      setMe(me);
-
-      // b) find the match row between me & otherUser
-      const {
-        data: [match],
-        error: matchErr,
-      } = await supabase
-        .from("matches")
-        .select("id")
-        .or(
-          `and(user_a.eq.${me.id},user_b.eq.${otherUser.id}),` +
-            `and(user_a.eq.${otherUser.id},user_b.eq.${me.id})`
-        )
-        .maybeSingle();
-      if (matchErr) return console.error("match lookup:", matchErr);
-      if (!match) return console.error("No match exists – cannot chat");
-
-      // c) find or create a chat row for that match
-      let { data: chat, error: chatErr } = await supabase
-        .from("chats")
-        .select("id")
-        .eq("match_id", match.id)
-        .maybeSingle();
-      if (chatErr) return console.error("chat lookup:", chatErr);
-
-      if (!chat) {
-        // create if missing
+      try {
         const {
-          data: [newChat],
-          error: createErr,
-        } = await supabase
+          data: { session },
+          error: sessErr,
+        } = await supabase.auth.getSession();
+        if (sessErr || !session) {
+          throw new Error(sessErr?.message || "No active session");
+        }
+        const meUser = session.user;
+        if (!mounted) return;
+        setMe(meUser);
+
+        const { data: existingMatch, error: matchLookupErr } = await supabase
+          .from("matches")
+          .select("id")
+          .or(
+            `and(user_a.eq.${meUser.id},user_b.eq.${otherUser.id}),` +
+              `and(user_a.eq.${otherUser.id},user_b.eq.${meUser.id})`
+          )
+          .maybeSingle();
+        if (matchLookupErr) {
+          throw matchLookupErr;
+        }
+
+        let matchRecord = existingMatch;
+        if (!matchRecord) {
+          const { data: insertedMatch, error: insertMatchErr } = await supabase
+            .from("matches")
+            .insert([
+              {
+                user_a: meUser.id,
+                user_b: otherUser.id,
+                matched_at: new Date().toISOString(),
+              },
+            ])
+            .select("id")
+            .single();
+
+          if (insertMatchErr) {
+            throw insertMatchErr;
+          }
+          matchRecord = insertedMatch;
+        }
+
+        if (!mounted) return;
+        const matchId = matchRecord.id;
+
+        const { data: existingChat, error: chatLookupErr } = await supabase
           .from("chats")
-          .insert({ match_id: match.id })
-          .select("id");
-        if (createErr) return console.error("chat create:", createErr);
-        chat = newChat;
-      }
+          .select("id")
+          .eq("match_id", matchId)
+          .maybeSingle();
+        if (chatLookupErr) {
+          throw chatLookupErr;
+        }
 
-      if (!mounted) return;
-      setChatId(chat.id);
+        let chatRecord = existingChat;
+        if (!chatRecord) {
+          const { data: newChat, error: createChatErr } = await supabase
+            .from("chats")
+            .insert({ match_id: matchId })
+            .select("id")
+            .single();
 
-      // d) load existing messages
-      const { data: history, error: histErr } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("chat_id", chat.id)
-        .order("sent_at", { ascending: true });
-      if (histErr) console.error("load history:", histErr);
-      else if (mounted) setMessages(history);
+          if (createChatErr) {
+            throw createChatErr;
+          }
+          chatRecord = newChat;
+        }
 
-      // e) realtime subscribe
-      channelRef.current = supabase
-        .channel(`chat_messages_${chat.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `chat_id=eq.${chat.id}`,
-          },
-          (payload) => {
-            if (mounted) {
-              setMessages((m) => [...m, payload.new]);
+        if (!mounted) return;
+        setChatId(chatRecord.id);
+
+        const { data: history, error: histErr } = await supabase
+          .from("messages")
+          .select("*")
+          .eq("chat_id", chatRecord.id)
+          .order("sent_at", { ascending: true });
+        if (histErr) {
+          throw histErr;
+        } else if (mounted) {
+          setMessages(history);
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: false });
+          }, 100);
+        }
+
+        channelRef.current = supabase
+          .channel(`chat_messages_${chatRecord.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `chat_id=eq.${chatRecord.id}`,
+            },
+            (payload) => {
+              if (!mounted) return;
+              setMessages((prev) => [...prev, payload.new]);
               flatListRef.current?.scrollToEnd({ animated: true });
             }
-          }
-        )
-        .subscribe();
+          )
+          .subscribe();
+      } catch (err) {
+        console.error("Chat initialization error:", err);
+        if (mounted) {
+          setError(err.message || "Failed to initialize chat");
+        }
+      }
     })();
 
     return () => {
       mounted = false;
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
-  }, [otherUser.id]);
+  }, [otherUser?.id]);
 
-  // 2️⃣ Send new message
   const handleSend = async () => {
-    if (!newMessage.trim() || !me || !chatId) return;
+    if (!newMessage.trim() || !me || !chatId || isSending) {
+      return;
+    }
+
     const content = newMessage.trim();
+    const tempId = Date.now().toString(); // Temporary ID for optimistic update
     const payload = {
+      id: tempId, // Temporary ID
       chat_id: chatId,
       sender_id: me.id,
       content,
       sent_at: new Date().toISOString(),
     };
 
-    // optimistic UI
-    setMessages((m) => [...m, payload]);
-    flatListRef.current?.scrollToEnd({ animated: true });
+    // Optimistic UI update
+    setMessages((prev) => [...prev, payload]);
     setNewMessage("");
+    setIsSending(true);
 
-    const { error: insertErr } = await supabase
-      .from("messages")
-      .insert([payload]);
-    if (insertErr) console.error("send message error:", insertErr);
+    try {
+      const { data: insertedMessage, error: insertErr } = await supabase
+        .from("messages")
+        .insert([payload])
+        .select()
+        .single();
+
+      if (insertErr) {
+        throw insertErr;
+      }
+
+      // Replace the temporary message with the real one from the database
+      setMessages((prev) => [
+        ...prev.filter((msg) => msg.id !== tempId),
+        insertedMessage,
+      ]);
+    } catch (err) {
+      console.error("Message send error:", err);
+      // Rollback optimistic update
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      Alert.alert(
+        "Message not sent",
+        err.message || "Could not send message. Please try again."
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  if (!me || chatId === null) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -146,8 +233,7 @@ export default function SingleChatScreen() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          inverted
-          keyExtractor={(item) => item.id?.toString() || item.sent_at}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => {
             const isMe = me && item.sender_id === me.id;
             return (
@@ -158,6 +244,9 @@ export default function SingleChatScreen() {
                 ]}
               >
                 <Text style={styles.messageText}>{item.content}</Text>
+                {item.id.toString().length > 15 && (
+                  <Text style={styles.sendingText}>Sending...</Text>
+                )}
               </View>
             );
           }}
@@ -174,8 +263,13 @@ export default function SingleChatScreen() {
             value={newMessage}
             onChangeText={setNewMessage}
             placeholder="Type a message…"
+            editable={!isSending}
           />
-          <Button title="Send" onPress={handleSend} />
+          <Button
+            title="Send"
+            onPress={handleSend}
+            disabled={isSending || !newMessage.trim()}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -185,6 +279,16 @@ export default function SingleChatScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1 },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorText: {
+    color: "red",
+    padding: 20,
+    textAlign: "center",
+  },
   chatContent: { padding: 16, paddingBottom: 0 },
   bubble: {
     marginVertical: 4,
@@ -201,6 +305,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#ECECEC",
   },
   messageText: { fontSize: 16 },
+  sendingText: {
+    fontSize: 10,
+    color: "#666",
+    marginTop: 4,
+    fontStyle: "italic",
+  },
   inputRow: {
     flexDirection: "row",
     padding: 8,

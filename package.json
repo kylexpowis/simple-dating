@@ -11,7 +11,9 @@
     "seed": "node scripts/seed.js"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@expo/vector-icons": "^14.1.0",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-picker/picker": "^2.11.0",
     "@react-navigation/bottom-tabs": "^7.3.12",
     "@react-navigation/material-top-tabs": "^7.2.12",
     "@react-navigation/native": "^7.1.9",
@@ -19,7 +21,7 @@
     "@react-navigation/stack": "^7.3.1",
     "@react-spring/native": "^9.5.5",
     "@supabase/postgrest-js": "^1.19.4",
-    "@supabase/supabase-js": "^2.49.4",
+    "@supabase/supabase-js": "^2.50.0",
     "base64-arraybuffer": "^1.0.2",
     "buffer": "^6.0.3",
     "dotenv": "^16.5.0",
@@ -36,8 +38,7 @@
     "react-native-screens": "^4.10.0",
     "react-native-tab-view": "^4.0.12",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-vector-icons": "^10.2.0",
-    "@expo/vector-icons": "^14.1.0"
+    "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",

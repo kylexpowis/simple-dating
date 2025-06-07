@@ -1,6 +1,6 @@
 // src/screens/OtherUserProfile.jsx
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ScrollView,
@@ -25,10 +25,9 @@ export default function OtherUserProfile() {
     params: { user },
   } = useRoute();
   // “user” here contains only basic fields (firstName, age, etc.)
-  // We will fetch that user’s images from supabase on mount.
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [images, setImages] = useState([]); // array of image URLs for this other user
+  const [images, setImages] = useState([]); // will hold this other user’s image URLs
   const [loadingImages, setLoadingImages] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -52,7 +51,6 @@ export default function OtherUserProfile() {
     let isMounted = true;
     (async () => {
       try {
-        // Query all URLs for otherUser.id, ordered by uploaded_at ascending
         const { data: imgs, error: imgErr } = await supabase
           .from("user_images")
           .select("url")
@@ -63,10 +61,9 @@ export default function OtherUserProfile() {
 
         if (isMounted) {
           if (imgs && imgs.length > 0) {
-            // Map to array of URLs in chronological order
             setImages(imgs.map((r) => r.url));
           } else {
-            // Fallback: if no images in table, use their single “photoUrl” (passed via navigation)
+            // fallback: use the single photoUrl passed from navigation
             setImages([user.photoUrl]);
           }
         }
@@ -74,7 +71,6 @@ export default function OtherUserProfile() {
         console.error("Error fetching other user images:", e);
         if (isMounted) {
           Alert.alert("Error", "Could not load user images.");
-          // still set something so carousel doesn’t break
           setImages([user.photoUrl]);
         }
       } finally {
@@ -87,7 +83,7 @@ export default function OtherUserProfile() {
     };
   }, [user.id, user.photoUrl]);
 
-  // 3) “Like” handler, unchanged
+  // 3) “Like” handler (unchanged)
   const handleLike = async () => {
     if (!currentUser) {
       console.warn("You must be signed in to like someone.");
@@ -198,10 +194,14 @@ export default function OtherUserProfile() {
           <Text>Drugs: {user.drugs}</Text>
 
           <View style={{ marginTop: 20 }}>
+            {/* NAVIGATE to "SingleChatScreen" (the stack route name) */}
             <Button
               title="Send Message"
               onPress={() =>
-                navigation.navigate("SingleChat", { otherUser: user })
+                navigation.navigate("Home", {
+                  screen: "SingleChatScreen",
+                  params: { otherUser: user },
+                })
               }
             />
             <View style={{ height: 12 }} />

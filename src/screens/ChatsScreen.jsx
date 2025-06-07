@@ -1,4 +1,5 @@
 // src/screens/ChatsScreen.jsx
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -50,7 +51,7 @@ export default function ChatsScreen() {
         m.user_a === me.id ? m.user_b : m.user_a
       );
 
-      // 3) Fetch full matched user profiles (all fields) + first image URL
+      // 3) Fetch full matched user profiles + first image URL
       if (otherIds.length) {
         const { data: users, error: userErr } = await supabase
           .from("users")
@@ -106,7 +107,7 @@ export default function ChatsScreen() {
         if (isMounted) setMatches([]);
       }
 
-      // 4) (Optional) Fetch latest message previews via RPC—if function exists
+      // 4) (Optional) Fetch message previews via RPC
       try {
         const { data: msgs, error: msgErr } = await supabase.rpc(
           "latest_messages",
@@ -116,7 +117,7 @@ export default function ChatsScreen() {
         if (isMounted) setPreviews(msgs);
       } catch (rpcError) {
         console.warn(
-          "RPC latest_messages failed or not found. Skipping previews:",
+          "RPC latest_messages not found, skipping previews:",
           rpcError
         );
         if (isMounted) setPreviews([]);
@@ -153,7 +154,10 @@ export default function ChatsScreen() {
               firstName={u.firstName}
               photoUrl={u.photoUrl}
               onPress={() =>
-                navigation.navigate("OtherUserProfile", { user: u })
+                navigation.navigate("Home", {
+                  screen: "OtherUserProfile",
+                  params: { user: u },
+                })
               }
             />
           ))}
@@ -172,12 +176,12 @@ export default function ChatsScreen() {
           <TouchableOpacity
             style={styles.previewItem}
             onPress={() =>
-              navigation.navigate("SingleChat", {
-                otherUserId: item.other_id,
+              navigation.navigate("Home", {
+                screen: "SingleChatScreen",
+                params: { otherUser: { id: item.other_id } },
               })
             }
           >
-            {/* You can replace this placeholder with the matched user's avatar if you have it */}
             <View style={styles.previewAvatarPlaceholder} />
             <View style={styles.previewText}>
               <Text style={styles.previewName}>{item.other_id}</Text>
@@ -206,7 +210,6 @@ const AVATAR_SIZE = 50;
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
 
-  /* Matches strip */
   matchesContainer: {
     borderBottomWidth: 1,
     borderColor: "#ddd",
@@ -222,7 +225,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* Message previews */
   previewItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -259,7 +261,6 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
 
-  /* Centered loading state */
   center: {
     flex: 1,
     justifyContent: "center",
