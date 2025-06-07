@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
-import MatchCard from "../../components/MatchCard";
+import MatchedCircleCard from "../../components/MatchedCircleCard";
 import SingleChatCard from "../../components/SingleChatCard";
 
 export default function ChatsScreen() {
@@ -23,7 +23,7 @@ export default function ChatsScreen() {
     let isMounted = true;
 
     (async () => {
-      // 1) Get current user session
+      // 1) get session
       const {
         data: { session },
         error: sessErr,
@@ -35,7 +35,7 @@ export default function ChatsScreen() {
       }
       const me = session.user;
 
-      // 2) Fetch all matches (both messaged and unmatched)
+      // 2) fetch all matches
       const { data: matchRows, error: matchErr } = await supabase
         .from("matches")
         .select("id, user_a, user_b, matched_at")
@@ -52,7 +52,8 @@ export default function ChatsScreen() {
         m.user_a === me.id ? m.user_b : m.user_a
       );
 
-      // 3) Fetch full user profiles for all matches
+      // 3) fetch full user profiles INCLUDING all needed fields
+      let userMap = {};
       if (otherIds.length) {
         const { data: users, error: userErr } = await supabase
           .from("users")
@@ -61,7 +62,19 @@ export default function ChatsScreen() {
             id,
             first_name,
             age,
-            user_images (url)
+            city,
+            country,
+            bio,
+            ethnicities,
+            relationship,
+            has_kids,
+            wants_kids,
+            religion,
+            alcohol,
+            cigarettes,
+            weed,
+            drugs,
+            user_images ( url )
           `
           )
           .in("id", otherIds);
@@ -72,92 +85,87 @@ export default function ChatsScreen() {
           return;
         }
 
-        const userMap = users.reduce((acc, user) => {
-          acc[user.id] = {
-            id: user.id,
-            firstName: user.first_name,
-            age: user.age,
-            photoUrl: user.user_images?.[0]?.url || null,
+        users.forEach((u) => {
+          userMap[u.id] = {
+            id: u.id,
+            firstName: u.first_name,
+            age: u.age,
+            location: { city: u.city, country: u.country },
+            bio: u.bio,
+            ethnicities: u.ethnicities,
+            relationshipType: u.relationship,
+            hasKids: u.has_kids,
+            wantsKids: u.wants_kids,
+            religion: u.religion,
+            alcohol: u.alcohol,
+            cigarettes: u.cigarettes,
+            weed: u.weed,
+            drugs: u.drugs,
+            photoUrl: u.user_images?.[0]?.url ?? null,
           };
-          return acc;
-        }, {});
-
-        // 4) Fetch chats to determine which matches have messages
-        const { data: userChats, error: chatsErr } = await supabase
-          .from("chats")
-          .select("match_id")
-          .in(
-            "match_id",
-            matchRows.map((m) => m.id)
-          );
-
-        if (chatsErr) {
-          console.error("Error fetching chats:", chatsErr);
-          if (isMounted) setLoading(false);
-          return;
-        }
-
-        const chatMatchIds = new Set(userChats.map((c) => c.match_id));
-
-        // 5) Separate into matches (no messages) and chats (has messages)
-        const newMatches = [];
-        const newChats = [];
-
-        matchRows.forEach((match) => {
-          const otherUserId =
-            match.user_a === me.id ? match.user_b : match.user_a;
-          const user = userMap[otherUserId];
-
-          if (user) {
-            if (chatMatchIds.has(match.id)) {
-              newChats.push({
-                matchId: match.id,
-                user,
-                lastMessage: null, // Will be updated below
-              });
-            } else {
-              newMatches.push(user);
-            }
-          }
         });
+      }
 
-        // 6) Fetch last messages for chats
-        if (newChats.length > 0) {
-          const { data: lastMessages, error: messagesErr } = await supabase
-            .from("messages")
-            .select("id, chat_id, content, sent_at, sender_id")
-            .in(
-              "chat_id",
-              userChats.map((c) => c.match_id)
-            )
-            .order("sent_at", { ascending: false });
+      // 4) fetch chats to see which matches have chats
+      const { data: userChats = [], error: chatsErr } = await supabase
+        .from("chats")
+        .select("match_id");
 
-          if (!messagesErr && lastMessages) {
-            const messagesByChatId = lastMessages.reduce((acc, message) => {
-              if (!acc[message.chat_id]) {
-                acc[message.chat_id] = message;
-              }
-              return acc;
-            }, {});
+      if (chatsErr) {
+        console.error("Error fetching chats:", chatsErr);
+        if (isMounted) setLoading(false);
+        return;
+      }
+      const chatMatchIds = new Set(userChats.map((c) => c.match_id));
 
-            newChats.forEach((chat) => {
-              chat.lastMessage = messagesByChatId[chat.matchId];
-            });
-          }
+      // 5) split into unmatched matches vs active chats
+      const newMatches = [];
+      const newChats = [];
+
+      matchRows.forEach((match) => {
+        const otherUserId =
+          match.user_a === me.id ? match.user_b : match.user_a;
+        const u = userMap[otherUserId];
+        if (!u) return;
+
+        if (chatMatchIds.has(match.id)) {
+          newChats.push({
+            matchId: match.id,
+            user: u,
+            lastMessage: null,
+          });
+        } else {
+          newMatches.push(u);
         }
+      });
 
-        if (isMounted) {
-          setMatches(newMatches);
-          setChats(newChats);
-        }
-      } else {
-        if (isMounted) {
-          setMatches([]);
-          setChats([]);
+      // 6) fetch last messages for active chats
+      if (newChats.length) {
+        const { data: lastMessages = [], error: msgErr } = await supabase
+          .from("messages")
+          .select("chat_id, content, sent_at")
+          .in(
+            "chat_id",
+            newChats.map((c) => c.matchId)
+          )
+          .order("sent_at", { ascending: false });
+
+        if (!msgErr) {
+          const byChat = lastMessages.reduce((acc, m) => {
+            if (!acc[m.chat_id]) acc[m.chat_id] = m;
+            return acc;
+          }, {});
+          newChats.forEach((c) => {
+            c.lastMessage = byChat[c.matchId] ?? null;
+          });
         }
       }
 
-      if (isMounted) setLoading(false);
+      if (isMounted) {
+        setMatches(newMatches);
+        setChats(newChats);
+        setLoading(false);
+      }
     })();
 
     return () => {
@@ -175,7 +183,7 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Matches strip at top - only shows unmatched connections */}
+      {/* Matches strip */}
       {matches.length > 0 && (
         <View style={styles.matchesContainer}>
           <ScrollView
@@ -184,15 +192,12 @@ export default function ChatsScreen() {
             contentContainerStyle={styles.matchesScroll}
           >
             {matches.map((u) => (
-              <MatchCard
+              <MatchedCircleCard
                 key={u.id}
                 firstName={u.firstName}
                 photoUrl={u.photoUrl}
                 onPress={() =>
-                  navigation.navigate("Home", {
-                    screen: "OtherUserProfile",
-                    params: { user: u },
-                  })
+                  navigation.navigate("OtherUserProfile", { user: u })
                 }
               />
             ))}
@@ -200,12 +205,21 @@ export default function ChatsScreen() {
         </View>
       )}
 
-      {/* Chats list - shows all messaged connections */}
+      {/* Chat previews */}
       <FlatList
         data={chats}
         keyExtractor={(item) => item.matchId.toString()}
         renderItem={({ item }) => (
-          <SingleChatCard user={item.user} lastMessage={item.lastMessage} />
+          <SingleChatCard
+            user={item.user}
+            lastMessage={item.lastMessage}
+            onPress={() =>
+              navigation.navigate("Home", {
+                screen: "SingleChatScreen",
+                params: { otherUser: item.user },
+              })
+            }
+          />
         )}
         ListEmptyComponent={() => (
           <View style={styles.empty}>
@@ -229,10 +243,6 @@ const styles = StyleSheet.create({
   matchesScroll: {
     paddingHorizontal: 12,
     alignItems: "center",
-  },
-  noMatches: {
-    color: "#777",
-    fontSize: 14,
   },
   empty: {
     flex: 1,
