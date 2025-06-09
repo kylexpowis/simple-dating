@@ -23,7 +23,7 @@ export default function ChatsScreen() {
     let isMounted = true;
 
     (async () => {
-      // 1) get session
+      // 1) get current user
       const {
         data: { session },
         error: sessErr,
@@ -36,24 +36,27 @@ export default function ChatsScreen() {
       const me = session.user;
 
       // 2) fetch all matches
-      const { data: matchRows, error: matchErr } = await supabase
+      const { data: matchRows = [], error: matchErr } = await supabase
         .from("matches")
         .select("id, user_a, user_b, matched_at")
         .or(`user_a.eq.${me.id},user_b.eq.${me.id}`)
         .order("matched_at", { ascending: false });
-
       if (matchErr) {
         console.error("Error fetching matches:", matchErr);
         if (isMounted) setLoading(false);
         return;
       }
 
-      const otherIds = matchRows.map((m) =>
-        m.user_a === me.id ? m.user_b : m.user_a
-      );
+      // build map: matchId -> otherUserId
+      const otherByMatch = {};
+      matchRows.forEach((m) => {
+        otherByMatch[m.id] = m.user_a === me.id ? m.user_b : m.user_a;
+      });
+      const matchIds = matchRows.map((m) => m.id);
 
-      // 3) fetch full user profiles INCLUDING all needed fields
+      // 3) fetch user profiles
       let userMap = {};
+      const otherIds = Object.values(otherByMatch);
       if (otherIds.length) {
         const { data: users, error: userErr } = await supabase
           .from("users")
@@ -78,13 +81,11 @@ export default function ChatsScreen() {
           `
           )
           .in("id", otherIds);
-
         if (userErr) {
           console.error("Error fetching user details:", userErr);
           if (isMounted) setLoading(false);
           return;
         }
-
         users.forEach((u) => {
           userMap[u.id] = {
             id: u.id,
@@ -106,60 +107,96 @@ export default function ChatsScreen() {
         });
       }
 
-      // 4) fetch chats to see which matches have chats
-      const { data: userChats = [], error: chatsErr } = await supabase
-        .from("chats")
-        .select("match_id");
+      // 4) fetch likes: who I liked & who liked me
+      const { data: myLikesRows = [], error: myLikesErr } = await supabase
+        .from("likes")
+        .select("likee_id")
+        .eq("liker_id", me.id);
+      if (myLikesErr) console.error("Error fetching my likes:", myLikesErr);
+      const myLikedIds = new Set(myLikesRows.map((r) => r.likee_id));
 
+      const { data: theirLikesRows = [], error: theirLikesErr } = await supabase
+        .from("likes")
+        .select("liker_id")
+        .eq("likee_id", me.id);
+      if (theirLikesErr)
+        console.error("Error fetching others' likes:", theirLikesErr);
+      const theirLikedIds = new Set(
+        theirLikesRows.map((r) => r.liker_id)
+      );
+
+      // 5) fetch chats and messages
+      const { data: chatRows = [], error: chatsErr } = await supabase
+        .from("chats")
+        .select("id, match_id")
+        .in("match_id", matchIds);
       if (chatsErr) {
         console.error("Error fetching chats:", chatsErr);
         if (isMounted) setLoading(false);
         return;
       }
-      const chatMatchIds = new Set(userChats.map((c) => c.match_id));
+      const chatIds = chatRows.map((c) => c.id);
 
-      // 5) split into unmatched matches vs active chats
-      const newMatches = [];
-      const newChats = [];
+      const { data: msgRows = [], error: msgErr } = await supabase
+        .from("messages")
+        .select("chat_id, sender_id, content, sent_at")
+        .in("chat_id", chatIds)
+        .order("sent_at", { ascending: false });
+      if (msgErr) console.error("Error fetching messages:", msgErr);
 
-      matchRows.forEach((match) => {
-        const otherUserId =
-          match.user_a === me.id ? match.user_b : match.user_a;
-        const u = userMap[otherUserId];
-        if (!u) return;
-
-        if (chatMatchIds.has(match.id)) {
-          newChats.push({
-            matchId: match.id,
-            user: u,
-            lastMessage: null,
-          });
+      // compute stats & last message per chat
+      const chatStats = {};
+      const lastMsgByChat = {};
+      msgRows.forEach((m) => {
+        if (!chatStats[m.chat_id]) {
+          chatStats[m.chat_id] = { fromOther: false, fromMe: false };
+        }
+        if (m.sender_id === me.id) {
+          chatStats[m.chat_id].fromMe = true;
         } else {
-          newMatches.push(u);
+          chatStats[m.chat_id].fromOther = true;
+        }
+        if (!lastMsgByChat[m.chat_id]) {
+          lastMsgByChat[m.chat_id] = {
+            content: m.content,
+            sent_at: m.sent_at,
+          };
         }
       });
 
-      // 6) fetch last messages for active chats
-      if (newChats.length) {
-        const { data: lastMessages = [], error: msgErr } = await supabase
-          .from("messages")
-          .select("chat_id, content, sent_at")
-          .in(
-            "chat_id",
-            newChats.map((c) => c.matchId)
-          )
-          .order("sent_at", { ascending: false });
-
-        if (!msgErr) {
-          const byChat = lastMessages.reduce((acc, m) => {
-            if (!acc[m.chat_id]) acc[m.chat_id] = m;
-            return acc;
-          }, {});
-          newChats.forEach((c) => {
-            c.lastMessage = byChat[c.matchId] ?? null;
+      // 6) build filtered chats list
+      const newChats = [];
+      chatRows.forEach((c) => {
+        const stats = chatStats[c.id] || {
+          fromOther: false,
+          fromMe: false,
+        };
+        const otherId = otherByMatch[c.match_id];
+        const mutual = myLikedIds.has(otherId) && theirLikedIds.has(otherId);
+        // include if both have talked, OR mutual like + at least one message
+        if (
+          (stats.fromOther && stats.fromMe) ||
+          (mutual && (stats.fromOther || stats.fromMe))
+        ) {
+          newChats.push({
+            matchId: c.match_id,
+            user: userMap[otherId],
+            lastMessage: lastMsgByChat[c.id] ?? null,
           });
         }
-      }
+      });
+
+      // 7) build matches strip (no chats, mutual likes only)
+      const chatMatchIds = new Set(
+        newChats.map((c) => c.matchId)
+      );
+      const newMatches = matchRows
+        .filter((m) => {
+          if (chatMatchIds.has(m.id)) return false;
+          const otherId = otherByMatch[m.id];
+          return myLikedIds.has(otherId) && theirLikedIds.has(otherId);
+        })
+        .map((m) => userMap[otherByMatch[m.id]]);
 
       if (isMounted) {
         setMatches(newMatches);
@@ -183,7 +220,7 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Matches strip */}
+      {/* Matches strip (mutual likes only, no active chats) */}
       {matches.length > 0 && (
         <View style={styles.matchesContainer}>
           <ScrollView
@@ -226,7 +263,9 @@ export default function ChatsScreen() {
             <Text>No conversations yet</Text>
           </View>
         )}
-        contentContainerStyle={chats.length === 0 ? { flex: 1 } : undefined}
+        contentContainerStyle={
+          chats.length === 0 ? { flex: 1 } : undefined
+        }
       />
     </View>
   );
