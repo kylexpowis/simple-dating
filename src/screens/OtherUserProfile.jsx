@@ -21,17 +21,16 @@ import { supabase } from "../../Lib/supabase";
 
 export default function OtherUserProfile() {
   const navigation = useNavigation();
-  const {
-    params: { user },
-  } = useRoute();
-  // “user” here contains only basic fields (firstName, age, etc.)
+  const route = useRoute();
+  const user = route.params?.user;
+  // "user" here contains only basic fields (firstName, age, etc.)
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [images, setImages] = useState([]); // will hold this other user’s image URLs
+  const [images, setImages] = useState([]); // will hold this other user's image URLs
   const [loadingImages, setLoadingImages] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // 1) Load the currently authenticated user (so we can “like”)
+  // 1) Load the currently authenticated user (so we can "like")
   useEffect(() => {
     (async () => {
       const {
@@ -46,7 +45,7 @@ export default function OtherUserProfile() {
     })();
   }, []);
 
-  // 2) Fetch this “other user’s” images from user_images table
+  // 2) Fetch this "other user's" images from user_images table
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -83,7 +82,7 @@ export default function OtherUserProfile() {
     };
   }, [user.id, user.photoUrl]);
 
-  // 3) “Like” handler (unchanged)
+  // 3) "Like" handler
   const handleLike = async () => {
     if (!currentUser) {
       console.warn("You must be signed in to like someone.");
@@ -105,6 +104,21 @@ export default function OtherUserProfile() {
     } catch (e) {
       console.error("Like Error:", e);
       alert("Could not like user.");
+    }
+  };
+
+  // Handle sending message
+  const handleMessage = () => {
+    // Try both navigation methods
+    try {
+      // First try navigating through Home stack
+      navigation.navigate("Home", {
+        screen: "SingleChatScreen",
+        params: { otherUser: user },
+      });
+    } catch (e) {
+      // Fallback to direct navigation if above fails
+      navigation.navigate("SingleChatScreen", { otherUser: user });
     }
   };
 
@@ -194,16 +208,7 @@ export default function OtherUserProfile() {
           <Text>Drugs: {user.drugs}</Text>
 
           <View style={{ marginTop: 20 }}>
-            {/* NAVIGATE to "SingleChatScreen" (the stack route name) */}
-            <Button
-              title="Send Message"
-              onPress={() =>
-                navigation.navigate("Home", {
-                  screen: "SingleChatScreen",
-                  params: { otherUser: user },
-                })
-              }
-            />
+            <Button title="Send Message" onPress={handleMessage} />
             <View style={{ height: 12 }} />
             <Button title="Like" onPress={handleLike} />
             <View style={{ height: 12 }} />
