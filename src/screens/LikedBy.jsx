@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
-
 import LikedByCard from "../../components/LikedByCard";
 import MsgReqCircleCard from "../../components/MsgReqCircleCard";
 
