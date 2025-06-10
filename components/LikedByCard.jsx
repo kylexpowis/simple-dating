@@ -1,4 +1,5 @@
 // src/components/LikedByCard.jsx
+
 import React from "react";
 import {
   TouchableOpacity,
@@ -8,6 +9,7 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
+import { BlurView } from "expo-blur"; // ← new import
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
@@ -22,7 +24,15 @@ export default function LikedByCard({
 }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
-      <Image source={{ uri: photoUrl }} style={styles.image} />
+      <View style={styles.imageWrapper}>
+        <Image source={{ uri: photoUrl }} style={styles.image} />
+        {/* blur only the image */}
+        <BlurView
+          intensity={17}
+          style={styles.blurOverlay}
+          pointerEvents="none"
+        />
+      </View>
       <View style={styles.info}>
         <Text style={styles.name}>
           {firstName}, {age}
@@ -43,10 +53,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     overflow: "hidden",
   },
+  // new wrapper around the image so we can position the blur
+  imageWrapper: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    position: "relative",
+  },
   image: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     backgroundColor: "#eee",
+  },
+  // covers exactly the image area
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   info: {
     padding: 8,
