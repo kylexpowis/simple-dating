@@ -22,9 +22,7 @@ export default function SingleChatCard({ user, lastMessage }) {
         <View style={styles.avatarPlaceholder} />
       )}
       <View style={styles.textContainer}>
-        <Text style={styles.name}>
-          {user.firstName}, {user.age}
-        </Text>
+        <Text style={styles.name}>{user.firstName}</Text>
         <Text style={styles.message} numberOfLines={1}>
           {lastMessage?.content || "Start a new conversation"}
         </Text>
