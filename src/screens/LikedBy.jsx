@@ -291,7 +291,7 @@ export default function LikedBy() {
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Text style={styles.noMatches}>
-              No one has liked you yet.
+              No one has liked you yet
             </Text>
           </View>
         )}
