@@ -1,4 +1,5 @@
 // src/screens/HomeScreen.jsx
+
 import React, { useEffect, useState } from "react";
 import { FlatList, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -13,8 +14,20 @@ export default function HomeScreen({ navigation }) {
     async function loadProfiles() {
       setLoading(true);
 
-      // fetch users + their images
-      const { data, error } = await supabase.from("users").select(`
+      try {
+        // ─── get my user ID ───
+        const {
+          data: { session },
+          error: sessErr,
+        } = await supabase.auth.getSession();
+        if (sessErr || !session) {
+          console.error("Error fetching session:", sessErr);
+          // still go on to fetch profiles, but won't filter
+        }
+        const myId = session?.user?.id;
+
+        // ─── fetch users + their images ───
+        const { data, error } = await supabase.from("users").select(`
           id,
           first_name,
           age,
@@ -35,32 +48,40 @@ export default function HomeScreen({ navigation }) {
           )
         `);
 
-      if (error) {
-        console.error("Error fetching profiles:", error);
-      } else {
-        // massage into the shape ProfileCard expects
-        const formatted = data.map((u) => ({
-          id: u.id,
-          firstName: u.first_name,
-          age: u.age,
-          location: { city: u.city, country: u.country },
-          ethnicities: u.ethnicities,
-          relationshipType: u.relationship,
-          hasKids: u.has_kids,
-          wantsKids: u.wants_kids,
-          religion: u.religion,
-          alcohol: u.alcohol,
-          cigarettes: u.cigarettes,
-          weed: u.weed,
-          drugs: u.drugs,
-          bio: u.bio,
-          // take the first image or null
-          photoUrl: u.user_images?.[0]?.url || null,
-        }));
-        setProfiles(formatted);
-      }
+        if (error) {
+          console.error("Error fetching profiles:", error);
+          setProfiles([]);
+        } else {
+          // remove me from the results
+          const filtered = myId ? data.filter((u) => u.id !== myId) : data;
 
-      setLoading(false);
+          // massage into the shape ProfileCard expects
+          const formatted = filtered.map((u) => ({
+            id: u.id,
+            firstName: u.first_name,
+            age: u.age,
+            location: { city: u.city, country: u.country },
+            ethnicities: u.ethnicities,
+            relationshipType: u.relationship,
+            hasKids: u.has_kids,
+            wantsKids: u.wants_kids,
+            religion: u.religion,
+            alcohol: u.alcohol,
+            cigarettes: u.cigarettes,
+            weed: u.weed,
+            drugs: u.drugs,
+            bio: u.bio,
+            // take the first image or null
+            photoUrl: u.user_images?.[0]?.url || null,
+          }));
+          setProfiles(formatted);
+        }
+      } catch (err) {
+        console.error("Unexpected error loading profiles:", err);
+        setProfiles([]);
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadProfiles();
