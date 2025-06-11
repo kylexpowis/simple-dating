@@ -1,4 +1,3 @@
-// src/screens/SingleChatScreen.jsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -11,18 +10,36 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../Lib/supabase";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function SingleChatScreen() {
   const route = useRoute();
+  const navigation = useNavigation();
 
   let otherUser = route.params?.otherUser || null;
   if (!otherUser && route.params?.otherUserId) {
     otherUser = { id: route.params.otherUserId };
   }
+
+  // Set header options with back button
+  useEffect(() => {
+    navigation.setOptions({
+      title: otherUser?.firstName || "Chat",
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ marginLeft: 15 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, otherUser?.firstName]);
 
   const [me, setMe] = useState(null);
   const [chatId, setChatId] = useState(null);
