@@ -11,56 +11,56 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     async function loadProfiles() {
       setLoading(true);
-      console.log("[1] Starting profile load...");
+      console.log("Starting profile load...");
 
       try {
         // ─── STEP 1: Get current user ID ───
-        console.log("[2] Getting user session...");
+        console.log("Getting user session...");
         const {
           data: { session },
           error: sessErr,
         } = await supabase.auth.getSession();
         const myId = session?.user?.id;
 
-        console.log("[3] Current user ID:", myId || "No session found");
+        console.log("Current user ID:", myId || "No session found");
         if (sessErr) console.error("Session error:", sessErr);
 
         // ─── STEP 2: Fetch basic user data ───
-        console.log("[4] Fetching users from database...");
+        console.log("Fetching users from database...");
         const { data: usersData, error: usersError } = await supabase
           .from("users")
           .select("id, first_name, user_images(url)")
           .limit(20); // Start with small number for debugging
 
-        console.log("[5] Raw users data length:", usersData?.length || 0);
+        console.log("Raw users data length:", usersData?.length || 0);
 
         if (usersError) {
-          console.error("[6] Users fetch failed:", usersError);
+          console.error("Users fetch failed:", usersError);
           Alert.alert("Error", "Failed to load profiles");
           setProfiles([]);
           return;
         }
 
         if (!usersData || usersData.length === 0) {
-          console.warn("[7] No users found in database");
+          console.warn("No users found in database");
           setProfiles([]);
           return;
         }
 
         // ─── STEP 3: Basic filtering (just remove self) ───
-        console.log("[8] Applying basic filters...");
+        console.log("Applying basic filters...");
         const filtered = myId
           ? usersData.filter((u) => u.id !== myId)
           : usersData;
 
-        console.log("[9] After basic filtering:", filtered.length, "profiles");
+        console.log("After basic filtering:", filtered.length, "profiles");
         console.log(
           "[10] Sample profiles:",
           filtered.slice(0, 3).map((u) => ({ id: u.id, name: u.first_name }))
         );
 
         // ─── STEP 4: Format for UI ───
-        console.log("[11] Formatting profiles...");
+        console.log("Formatting profiles...");
         const formatted = filtered.map((u) => ({
           id: u.id,
           firstName: u.first_name || "Anonymous",
@@ -80,40 +80,40 @@ export default function HomeScreen({ navigation }) {
           bio: "Test bio",
         }));
 
-        console.log("[12] First formatted profile:", formatted[0]);
+        console.log("First formatted profile:", formatted[0]);
         setProfiles(formatted);
 
         // ─── STEP 5: Now try adding match filtering ───
         if (myId) {
-          console.log("[13] Checking for matches...");
+          console.log("Checking for matches...");
           const { data: matches, error: matchesError } = await supabase
             .from("matches")
             .select("user_a, user_b")
             .or(`user_a.eq.${myId},user_b.eq.${myId}`);
 
           if (matchesError) {
-            console.error("[14] Matches fetch error:", matchesError);
+            console.error("Matches fetch error:", matchesError);
           } else {
-            console.log("[15] Found matches:", matches.length);
+            console.log("Found matches:", matches.length);
             const matchedIds = matches.map((m) =>
               m.user_a === myId ? m.user_b : m.user_a
             );
-            console.log("[16] Matched user IDs:", matchedIds);
+            console.log("Matched user IDs:", matchedIds);
 
             const matchFiltered = formatted.filter(
               (profile) => !matchedIds.includes(profile.id)
             );
-            console.log("[17] After match filtering:", matchFiltered.length);
+            console.log("After match filtering:", matchFiltered.length);
             setProfiles(matchFiltered);
           }
         }
       } catch (err) {
-        console.error("[18] CRASH:", err);
+        console.error("CRASH:", err);
         Alert.alert("Error", "Unexpected error loading profiles");
         setProfiles([]);
       } finally {
         setLoading(false);
-        console.log("[19] Loading complete");
+        console.log("Loading complete");
       }
     }
 
