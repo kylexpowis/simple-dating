@@ -1,5 +1,3 @@
-// src/screens/OtherUserProfile.jsx
-
 import React, { useRef, useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -16,7 +14,7 @@ import {
   Alert,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../Lib/supabase";
 
 export default function OtherUserProfile() {
@@ -29,6 +27,20 @@ export default function OtherUserProfile() {
   const [images, setImages] = useState([]); // will hold this other user's image URLs
   const [loadingImages, setLoadingImages] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Set header options
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ marginLeft: 15 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   // 1) Load the currently authenticated user (so we can "like")
   useEffect(() => {

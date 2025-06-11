@@ -1,5 +1,3 @@
-// src/navigation/HomeStackNavigator.jsx
-
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 import HomeScreen from "../screens/HomeScreen";
@@ -10,20 +8,30 @@ const Stack = createStackNavigator();
 
 export default function HomeStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="HomeList" component={HomeScreen} />
+    <Stack.Navigator>
+      <Stack.Screen
+        name="HomeList"
+        component={HomeScreen}
+        options={{ headerShown: false }}
+      />
 
       <Stack.Screen
         name="OtherUserProfile"
         component={OtherUserProfile}
+        options={{
+          title: "",
+          headerShown: true,
+          headerBackTitleVisible: false,
+        }}
       />
 
       <Stack.Screen
         name="SingleChatScreen"
         component={SingleChatScreen}
         options={({ route }) => ({
-          // If otherUser.firstName is undefined, show a generic “Chat” title
           title: route.params?.otherUser?.firstName || "Chat",
+          headerShown: true,
+          headerBackTitleVisible: false,
         })}
       />
     </Stack.Navigator>
