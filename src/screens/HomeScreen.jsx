@@ -1,5 +1,7 @@
+// src/screens/HomeScreen.jsx
+
 import React, { useEffect, useState } from "react";
-import { FlatList, Text, View, Alert } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
 import { supabase } from "../../Lib/supabase";
@@ -11,109 +13,74 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     async function loadProfiles() {
       setLoading(true);
-      console.log("Starting profile load...");
 
       try {
-        // ─── STEP 1: Get current user ID ───
-        console.log("Getting user session...");
+        // ─── get my user ID ───
         const {
           data: { session },
           error: sessErr,
         } = await supabase.auth.getSession();
+        if (sessErr || !session) {
+          console.error("Error fetching session:", sessErr);
+          // still go on to fetch profiles, but won't filter
+        }
         const myId = session?.user?.id;
 
-        console.log("Current user ID:", myId || "No session found");
-        if (sessErr) console.error("Session error:", sessErr);
+        // ─── fetch users + their images ───
+        const { data, error } = await supabase.from("users").select(`
+          id,
+          first_name,
+          age,
+          city,
+          country,
+          ethnicities,
+          relationship,
+          has_kids,
+          wants_kids,
+          religion,
+          alcohol,
+          cigarettes,
+          weed,
+          drugs,
+          bio,
+          user_images (
+            url
+          )
+        `);
 
-        // ─── STEP 2: Fetch basic user data ───
-        console.log("Fetching users from database...");
-        const { data: usersData, error: usersError } = await supabase
-          .from("users")
-          .select("id, first_name, user_images(url)")
-          .limit(20); // Start with small number for debugging
-
-        console.log("Raw users data length:", usersData?.length || 0);
-
-        if (usersError) {
-          console.error("Users fetch failed:", usersError);
-          Alert.alert("Error", "Failed to load profiles");
+        if (error) {
+          console.error("Error fetching profiles:", error);
           setProfiles([]);
-          return;
-        }
+        } else {
+          // remove me from the results
+          const filtered = myId ? data.filter((u) => u.id !== myId) : data;
 
-        if (!usersData || usersData.length === 0) {
-          console.warn("No users found in database");
-          setProfiles([]);
-          return;
-        }
-
-        // ─── STEP 3: Basic filtering (just remove self) ───
-        console.log("Applying basic filters...");
-        const filtered = myId
-          ? usersData.filter((u) => u.id !== myId)
-          : usersData;
-
-        console.log("After basic filtering:", filtered.length, "profiles");
-        console.log(
-          "[10] Sample profiles:",
-          filtered.slice(0, 3).map((u) => ({ id: u.id, name: u.first_name }))
-        );
-
-        // ─── STEP 4: Format for UI ───
-        console.log("Formatting profiles...");
-        const formatted = filtered.map((u) => ({
-          id: u.id,
-          firstName: u.first_name || "Anonymous",
-          age: 25, // Hardcoded for testing
-          location: { city: "Test City", country: "Test Country" },
-          photoUrl: u.user_images?.[0]?.url || null,
-          // Add other required fields with dummy data
-          ethnicities: [],
-          relationshipType: "Unknown",
-          hasKids: false,
-          wantsKids: false,
-          religion: "",
-          alcohol: "",
-          cigarettes: "",
-          weed: "",
-          drugs: "",
-          bio: "Test bio",
-        }));
-
-        console.log("First formatted profile:", formatted[0]);
-        setProfiles(formatted);
-
-        // ─── STEP 5: Now try adding match filtering ───
-        if (myId) {
-          console.log("Checking for matches...");
-          const { data: matches, error: matchesError } = await supabase
-            .from("matches")
-            .select("user_a, user_b")
-            .or(`user_a.eq.${myId},user_b.eq.${myId}`);
-
-          if (matchesError) {
-            console.error("Matches fetch error:", matchesError);
-          } else {
-            console.log("Found matches:", matches.length);
-            const matchedIds = matches.map((m) =>
-              m.user_a === myId ? m.user_b : m.user_a
-            );
-            console.log("Matched user IDs:", matchedIds);
-
-            const matchFiltered = formatted.filter(
-              (profile) => !matchedIds.includes(profile.id)
-            );
-            console.log("After match filtering:", matchFiltered.length);
-            setProfiles(matchFiltered);
-          }
+          // massage into the shape ProfileCard expects
+          const formatted = filtered.map((u) => ({
+            id: u.id,
+            firstName: u.first_name,
+            age: u.age,
+            location: { city: u.city, country: u.country },
+            ethnicities: u.ethnicities,
+            relationshipType: u.relationship,
+            hasKids: u.has_kids,
+            wantsKids: u.wants_kids,
+            religion: u.religion,
+            alcohol: u.alcohol,
+            cigarettes: u.cigarettes,
+            weed: u.weed,
+            drugs: u.drugs,
+            bio: u.bio,
+            // take the first image or null
+            photoUrl: u.user_images?.[0]?.url || null,
+          }));
+          setProfiles(formatted);
         }
       } catch (err) {
-        console.error("CRASH:", err);
-        Alert.alert("Error", "Unexpected error loading profiles");
+        console.error("Unexpected error loading profiles:", err);
         setProfiles([]);
       } finally {
         setLoading(false);
-        console.log("Loading complete");
       }
     }
 
@@ -126,7 +93,7 @@ export default function HomeScreen({ navigation }) {
         edges={["top"]}
         className="pt-[25px] flex-1 justify-center items-center"
       >
-        <Text>Loading profiles...</Text>
+        <Text>Loading profiles…</Text>
       </SafeAreaView>
     );
   }
@@ -148,11 +115,6 @@ export default function HomeScreen({ navigation }) {
         ListEmptyComponent={() => (
           <View className="flex-1 justify-center items-center">
             <Text>No profiles found.</Text>
-            <Text className="mt-2 text-gray-500">
-              {profiles.length === 0
-                ? "Database might be empty"
-                : "All profiles filtered"}
-            </Text>
           </View>
         )}
       />
