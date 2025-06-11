@@ -26,13 +26,13 @@ export default function SingleChatScreen() {
     otherUser = { id: route.params.otherUserId };
   }
 
-  // Set header options with back button
+  // Set header options with back button routing to Chats tab
   useEffect(() => {
     navigation.setOptions({
       title: otherUser?.firstName || "Chat",
       headerLeft: () => (
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate("Chats")}
           style={{ marginLeft: 15 }}
         >
           <Ionicons name="arrow-back" size={24} color="black" />
