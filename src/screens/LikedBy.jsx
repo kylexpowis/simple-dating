@@ -1,5 +1,3 @@
-// src/screens/LikedBy.jsx
-
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -153,9 +151,6 @@ export default function LikedBy() {
         }
         const likerIds = likesRows.map((r) => r.liker_id);
 
-        // who I have already liked?
-        // (we already have myLikedIds from above)
-
         // filter out mutual likes
         const filteredIds = likerIds.filter((id) => !myLikedIds.has(id));
         if (filteredIds.length === 0) {
@@ -256,8 +251,8 @@ export default function LikedBy() {
                 photoUrl={u.photoUrl}
                 onPress={() =>
                   navigation.navigate("Home", {
-                    screen: "SingleChatScreen",
-                    params: { otherUser: u },
+                    screen: "OtherUserProfile",
+                    params: { user: u },
                   })
                 }
               />
@@ -278,7 +273,10 @@ export default function LikedBy() {
           <LikedByCard
             {...item}
             onPress={() =>
-              navigation.navigate("OtherUserProfile", { user: item })
+              navigation.navigate("Home", {
+                screen: "OtherUserProfile",
+                params: { user: item },
+              })
             }
           />
         )}
