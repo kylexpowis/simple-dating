@@ -15,47 +15,69 @@ export default function HomeScreen({ navigation }) {
       setLoading(true);
 
       try {
-        // ─── get my user ID ───
+        // 1) Get current user
         const {
           data: { session },
-          error: sessErr,
+          error: sessionErr,
         } = await supabase.auth.getSession();
-        if (sessErr || !session) {
-          console.error("Error fetching session:", sessErr);
-          // still go on to fetch profiles, but won't filter
+        if (sessionErr || !session) {
+          console.error("Could not fetch session:", sessionErr);
         }
         const myId = session?.user?.id;
 
-        // ─── fetch users + their images ───
-        const { data, error } = await supabase.from("users").select(`
-          id,
-          first_name,
-          age,
-          city,
-          country,
-          ethnicities,
-          relationship,
-          has_kids,
-          wants_kids,
-          religion,
-          alcohol,
-          cigarettes,
-          weed,
-          drugs,
-          bio,
-          user_images (
-            url
-          )
-        `);
+        // 2) Fetch IDs I have liked
+        const { data: likedRows = [], error: likedErr } = await supabase
+          .from("likes")
+          .select("likee_id")
+          .eq("liker_id", myId);
+        if (likedErr) {
+          console.error("Error loading my likes:", likedErr);
+        }
+        const myLikedIds = new Set(likedRows.map((r) => r.likee_id));
 
+        // 3) Fetch matches involving me
+        const { data: matchRows = [], error: matchErr } = await supabase
+          .from("matches")
+          .select("user_a,user_b")
+          .or(`user_a.eq.${myId},user_b.eq.${myId}`);
+        if (matchErr) {
+          console.error("Error loading matches:", matchErr);
+        }
+        const myMatchedIds = new Set(
+          matchRows.map((m) => (m.user_a === myId ? m.user_b : m.user_a))
+        );
+
+        // 4) Fetch all users + their first image
+        const { data, error } = await supabase.from("users").select(`
+    id,
+    first_name,
+    age,
+    city,
+    country,
+    ethnicities,
+    relationship,
+    has_kids,
+    wants_kids,
+    religion,
+    alcohol,
+    cigarettes,
+    weed,
+    drugs,
+    bio,
+    user_images ( url )
+  `);
         if (error) {
           console.error("Error fetching profiles:", error);
           setProfiles([]);
         } else {
-          // remove me from the results
-          const filtered = myId ? data.filter((u) => u.id !== myId) : data;
+          // 5) Filter out: me, anyone I’ve liked (keep everyone else, including those who liked me)
+          const filtered = data.filter((u) => {
+            if (u.id === myId) return false;
+            if (myLikedIds.has(u.id)) return false;
+            return true;
+          });
 
-          // massage into the shape ProfileCard expects
+          // 6) Massage into shape for ProfileCard
           const formatted = filtered.map((u) => ({
             id: u.id,
             firstName: u.first_name,
@@ -71,7 +93,6 @@ export default function HomeScreen({ navigation }) {
             weed: u.weed,
             drugs: u.drugs,
             bio: u.bio,
-            // take the first image or null
             photoUrl: u.user_images?.[0]?.url || null,
           }));
           setProfiles(formatted);
