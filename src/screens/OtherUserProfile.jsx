@@ -1,3 +1,5 @@
+// src/screens/OtherUserProfile.jsx
+
 import React, { useRef, useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -28,7 +30,7 @@ export default function OtherUserProfile() {
   const [loadingImages, setLoadingImages] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Set header options
+  // Set header Left back-button
   useEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
@@ -42,7 +44,7 @@ export default function OtherUserProfile() {
     });
   }, [navigation]);
 
-  // 1) Load the currently authenticated user (so we can "like")
+  // 1) Load current user (so we can "like")
   useEffect(() => {
     (async () => {
       const {
@@ -57,7 +59,7 @@ export default function OtherUserProfile() {
     })();
   }, []);
 
-  // 2) Fetch this "other user's" images from user_images table
+  // 2) Fetch this other user's images
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -74,8 +76,7 @@ export default function OtherUserProfile() {
           if (imgs && imgs.length > 0) {
             setImages(imgs.map((r) => r.url));
           } else {
-            // fallback: use the single photoUrl passed from navigation
-            setImages([user.photoUrl]);
+            setImages([user.photoUrl]); // fallback to passed-in
           }
         }
       } catch (e) {
@@ -94,7 +95,7 @@ export default function OtherUserProfile() {
     };
   }, [user.id, user.photoUrl]);
 
-  // 3) "Like" handler
+  // 3) "Like" handler (unchanged)
   const handleLike = async () => {
     if (!currentUser) {
       console.warn("You must be signed in to like someone.");
@@ -119,17 +120,15 @@ export default function OtherUserProfile() {
     }
   };
 
-  // Handle sending message
+  // 4) Send message: always go through HomeStack → SingleChatScreen
   const handleMessage = () => {
-    // Try both navigation methods
-    try {
-      // First try navigating through Home stack
-      navigation.navigate("Home", {
+    const tabNav = navigation.getParent();
+    if (tabNav) {
+      tabNav.navigate("Home", {
         screen: "SingleChatScreen",
         params: { otherUser: user },
       });
-    } catch (e) {
-      // Fallback to direct navigation if above fails
+    } else {
       navigation.navigate("SingleChatScreen", { otherUser: user });
     }
   };
