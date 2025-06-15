@@ -1,5 +1,3 @@
-// src/screens/LikedBy.jsx
-
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -65,8 +63,7 @@ export default function LikedBy() {
         // map match → otherUserId
         const otherByMatch = {};
         matchRows.forEach((m) => {
-          otherByMatch[m.id] =
-            m.user_a === me.id ? m.user_b : m.user_a;
+          otherByMatch[m.id] = m.user_a === me.id ? m.user_b : m.user_a;
         });
         const matchIds = matchRows.map((m) => m.id);
 
@@ -112,10 +109,7 @@ export default function LikedBy() {
         // they spoke to me, I never spoke back, and I haven't liked them
         const reqIds = new Set();
         Object.entries(chatStats).forEach(([chatId, stats]) => {
-          if (
-            stats.fromOther &&
-            !stats.fromMe
-          ) {
+          if (stats.fromOther && !stats.fromMe) {
             const otherId = userByChat[chatId];
             if (!myLikedIds.has(otherId)) {
               reqIds.add(otherId);
@@ -127,11 +121,10 @@ export default function LikedBy() {
         // fetch their profiles (name + avatar) for the strip
         let requests = [];
         if (reqArray.length > 0) {
-          const { data: usersReq = [], error: usersReqErr } =
-            await supabase
-              .from("users")
-              .select("id, first_name, user_images ( url )")
-              .in("id", reqArray);
+          const { data: usersReq = [], error: usersReqErr } = await supabase
+            .from("users")
+            .select("id, first_name, user_images ( url )")
+            .in("id", reqArray);
           if (usersReqErr) {
             console.error("could not load requesters' profiles:", usersReqErr);
           } else {
@@ -158,13 +151,8 @@ export default function LikedBy() {
         }
         const likerIds = likesRows.map((r) => r.liker_id);
 
-        // who I have already liked?
-        // (we already have myLikedIds from above)
-
         // filter out mutual likes
-        const filteredIds = likerIds.filter(
-          (id) => !myLikedIds.has(id)
-        );
+        const filteredIds = likerIds.filter((id) => !myLikedIds.has(id));
         if (filteredIds.length === 0) {
           if (isMounted) {
             setLikedUsers([]);
@@ -174,11 +162,10 @@ export default function LikedBy() {
         }
 
         // fetch their full profiles
-        const { data: usersData = [], error: usersErr } =
-          await supabase
-            .from("users")
-            .select(
-              `
+        const { data: usersData = [], error: usersErr } = await supabase
+          .from("users")
+          .select(
+            `
               id,
               first_name,
               age,
@@ -196,8 +183,8 @@ export default function LikedBy() {
               bio,
               user_images ( url )
             `
-            )
-            .in("id", filteredIds);
+          )
+          .in("id", filteredIds);
         if (usersErr) {
           console.error("Error fetching user profiles:", usersErr);
           if (isMounted) setLoading(false);
@@ -263,7 +250,10 @@ export default function LikedBy() {
                 firstName={u.firstName}
                 photoUrl={u.photoUrl}
                 onPress={() =>
-                  navigation.navigate("OtherUserProfile", { user: u })
+                  navigation.navigate("Home", {
+                    screen: "SingleChatScreen",
+                    params: { otherUser: u },
+                  })
                 }
               />
             ))}
@@ -283,15 +273,16 @@ export default function LikedBy() {
           <LikedByCard
             {...item}
             onPress={() =>
-              navigation.navigate("OtherUserProfile", { user: item })
+              navigation.navigate("Home", {
+                screen: "OtherUserProfile",
+                params: { user: item },
+              })
             }
           />
         )}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Text style={styles.noMatches}>
-              No one has liked you yet
-            </Text>
+            <Text style={styles.noMatches}>No one has liked you yet</Text>
           </View>
         )}
       />
