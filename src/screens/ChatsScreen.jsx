@@ -187,9 +187,7 @@ export default function ChatsScreen() {
       });
 
       // 7) build matches strip (no chats, mutual likes only)
-      const chatMatchIds = new Set(
-        newChats.map((c) => c.matchId)
-      );
+      const chatMatchIds = new Set(newChats.map((c) => c.matchId));
       const newMatches = matchRows
         .filter((m) => {
           if (chatMatchIds.has(m.id)) return false;
@@ -234,7 +232,10 @@ export default function ChatsScreen() {
                 firstName={u.firstName}
                 photoUrl={u.photoUrl}
                 onPress={() =>
-                  navigation.navigate("OtherUserProfile", { user: u })
+                  navigation.navigate("Home", {
+                    screen: "OtherUserProfile",
+                    params: { user: u },
+                  })
                 }
               />
             ))}
@@ -263,9 +264,7 @@ export default function ChatsScreen() {
             <Text>No conversations yet</Text>
           </View>
         )}
-        contentContainerStyle={
-          chats.length === 0 ? { flex: 1 } : undefined
-        }
+        contentContainerStyle={chats.length === 0 ? { flex: 1 } : undefined}
       />
     </View>
   );
