@@ -1,5 +1,3 @@
-// src/screens/HomeScreen.jsx
-
 import React, { useEffect, useState } from "react";
 import { FlatList, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -30,10 +28,17 @@ export default function HomeScreen({ navigation }) {
           .from("likes")
           .select("likee_id")
           .eq("liker_id", myId);
-        if (likedErr) {
-          console.error("Error loading my likes:", likedErr);
-        }
+        if (likedErr) console.error("Error loading my likes:", likedErr);
         const myLikedIds = new Set(likedRows.map((r) => r.likee_id));
+
+        // 2.5) Fetch IDs I have disliked
+        const { data: dislikedRows = [], error: dislikedErr } = await supabase
+          .from("dislikes")
+          .select("dislikee_id")
+          .eq("disliker_id", myId);
+        if (dislikedErr)
+          console.error("Error loading my dislikes:", dislikedErr);
+        const myDislikedIds = new Set(dislikedRows.map((r) => r.dislikee_id));
 
         // 3) Fetch matches involving me
         const { data: matchRows = [], error: matchErr } = await supabase
@@ -49,31 +54,32 @@ export default function HomeScreen({ navigation }) {
 
         // 4) Fetch all users + their first image
         const { data, error } = await supabase.from("users").select(`
-    id,
-    first_name,
-    age,
-    city,
-    country,
-    ethnicities,
-    relationship,
-    has_kids,
-    wants_kids,
-    religion,
-    alcohol,
-    cigarettes,
-    weed,
-    drugs,
-    bio,
-    user_images ( url )
-  `);
+          id,
+          first_name,
+          age,
+          city,
+          country,
+          ethnicities,
+          relationship,
+          has_kids,
+          wants_kids,
+          religion,
+          alcohol,
+          cigarettes,
+          weed,
+          drugs,
+          bio,
+          user_images ( url )
+        `);
         if (error) {
           console.error("Error fetching profiles:", error);
           setProfiles([]);
         } else {
-          // 5) Filter out: me, anyone I’ve liked (keep everyone else, including those who liked me)
+          // 5) Filter out: me, anyone I’ve liked, anyone I’ve disliked
           const filtered = data.filter((u) => {
             if (u.id === myId) return false;
             if (myLikedIds.has(u.id)) return false;
+            if (myDislikedIds.has(u.id)) return false;
             return true;
           });
 
