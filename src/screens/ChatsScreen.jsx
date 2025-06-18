@@ -121,9 +121,7 @@ export default function ChatsScreen() {
         .eq("likee_id", me.id);
       if (theirLikesErr)
         console.error("Error fetching others' likes:", theirLikesErr);
-      const theirLikedIds = new Set(
-        theirLikesRows.map((r) => r.liker_id)
-      );
+      const theirLikedIds = new Set(theirLikesRows.map((r) => r.liker_id));
 
       // 5) fetch chats and messages
       const { data: chatRows = [], error: chatsErr } = await supabase
