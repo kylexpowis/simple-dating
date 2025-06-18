@@ -258,7 +258,12 @@ export default function OtherUserProfile() {
           <View style={{ marginTop: 20 }}>
             <Button title="Send Message" onPress={handleMessage} />
             <View style={{ height: 12 }} />
-            <Button title="Like" onPress={handleLike} />
+            {!isMatched && (
+              <>
+                <Button title="Like" onPress={handleLike} />
+                <View style={{ height: 12 }} />
+              </>
+            )}
             <View style={{ height: 12 }} />
             <Button
               title={isMatched ? "Unmatch" : "Dislike"}
