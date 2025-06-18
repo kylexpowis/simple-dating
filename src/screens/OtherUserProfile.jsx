@@ -23,14 +23,14 @@ export default function OtherUserProfile() {
   const navigation = useNavigation();
   const route = useRoute();
   const user = route.params?.user;
-  // "user" here contains only basic fields (firstName, age, etc.)
+  // “user” here contains only basic fields (firstName, age, etc.)
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [images, setImages] = useState([]); // will hold this other user's image URLs
+  const [images, setImages] = useState([]); // will hold this other user’s image URLs
   const [loadingImages, setLoadingImages] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Set header Left back-button
+  // Set header back‐button
   useEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
@@ -44,7 +44,7 @@ export default function OtherUserProfile() {
     });
   }, [navigation]);
 
-  // 1) Load current user (so we can "like")
+  // 1) Load the currently authenticated user (so we can “like” / “dislike”)
   useEffect(() => {
     (async () => {
       const {
@@ -59,7 +59,7 @@ export default function OtherUserProfile() {
     })();
   }, []);
 
-  // 2) Fetch this other user's images
+  // 2) Fetch this “other user’s” images
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -69,14 +69,14 @@ export default function OtherUserProfile() {
           .select("url")
           .eq("user_id", user.id)
           .order("uploaded_at", { ascending: true });
-
         if (imgErr) throw imgErr;
 
         if (isMounted) {
           if (imgs && imgs.length > 0) {
             setImages(imgs.map((r) => r.url));
           } else {
-            setImages([user.photoUrl]); // fallback to passed-in
+            // fallback: use the single photoUrl passed from navigation
+            setImages([user.photoUrl]);
           }
         }
       } catch (e) {
@@ -95,7 +95,7 @@ export default function OtherUserProfile() {
     };
   }, [user.id, user.photoUrl]);
 
-  // 3) "Like" handler (unchanged)
+  // 3) “Like” handler (unchanged)
   const handleLike = async () => {
     if (!currentUser) {
       console.warn("You must be signed in to like someone.");
@@ -106,21 +106,39 @@ export default function OtherUserProfile() {
         liker_id: currentUser.id,
         likee_id: user.id,
       };
-      const { data: insertData, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from("likes")
-        .insert([payload], { returning: "representation" });
-      if (insertError) {
-        alert(`Could not like: ${insertError.message}`);
-      } else {
-        alert(`You liked ${user.firstName}!`);
-      }
+        .insert([payload]);
+      if (insertError) throw insertError;
+      alert(`You liked ${user.firstName}!`);
     } catch (e) {
       console.error("Like Error:", e);
-      alert("Could not like user.");
+      Alert.alert("Could not like user.");
     }
   };
 
-  // 4) Send message: always go through HomeStack → SingleChatScreen
+  // 3.5) **Dislike** handler → insert into new `dislikes` table
+  const handleDislike = async () => {
+    if (!currentUser) {
+      console.warn("You must be signed in to dislike someone.");
+      return;
+    }
+    try {
+      const { error } = await supabase.from("dislikes").insert({
+        disliker_id: currentUser.id,
+        dislikee_id: user.id,
+      });
+      if (error) throw error;
+      alert(`You disliked ${user.firstName}.`);
+      // immediately go back so they’re removed from your Home feed
+      navigation.goBack();
+    } catch (e) {
+      console.error("Dislike error:", e);
+      Alert.alert("Could not dislike user.");
+    }
+  };
+
+  // 4) “Send Message” handler → navigate into SingleChatScreen
   const handleMessage = () => {
     const tabNav = navigation.getParent();
     if (tabNav) {
@@ -133,7 +151,7 @@ export default function OtherUserProfile() {
     }
   };
 
-  // Carousel controls
+  // Carousel controls (unchanged)
   const flatListRef = useRef(null);
   const onNext = () => {
     if (currentIndex < images.length - 1) {
@@ -223,12 +241,7 @@ export default function OtherUserProfile() {
             <View style={{ height: 12 }} />
             <Button title="Like" onPress={handleLike} />
             <View style={{ height: 12 }} />
-            <Button
-              title="Dislike"
-              onPress={() => {
-                console.log("Disliked");
-              }}
-            />
+            <Button title="Dislike" onPress={handleDislike} />
           </View>
         </View>
       </ScrollView>
