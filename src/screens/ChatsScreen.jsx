@@ -7,6 +7,7 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
@@ -18,6 +19,25 @@ export default function ChatsScreen() {
   const [matches, setMatches] = useState([]);
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Unmatch: delete the row where user_a/user_b match me & otherId
+  const handleUnmatch = async (otherId) => {
+    try {
+      const { data, error } = await supabase
+        .from("matches")
+        .delete()
+        .or(
+          `and(user_a.eq.${me.id},user_b.eq.${otherId}),` +
+            `and(user_b.eq.${me.id},user_a.eq.${otherId})`
+        );
+      if (error) throw error;
+      // remove from UI
+      setMatches((prev) => prev.filter((u) => u.id !== otherId));
+    } catch (e) {
+      console.error("Error unmatching:", e);
+      Alert.alert("Could not unmatch. Please try again.");
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -123,7 +143,27 @@ export default function ChatsScreen() {
         console.error("Error fetching others' likes:", theirLikesErr);
       const theirLikedIds = new Set(theirLikesRows.map((r) => r.liker_id));
 
-      // 5) fetch chats and messages
+      // 5) fetch dislikes: who I disliked & who disliked me
+      const { data: myDislikesRows = [], error: myDislikesErr } = await supabase
+        .from("dislikes")
+        .select("dislikee_id")
+        .eq("disliker_id", me.id);
+      if (myDislikesErr)
+        console.error("Error fetching my dislikes:", myDislikesErr);
+      const myDislikedIds = new Set(myDislikesRows.map((r) => r.dislikee_id));
+
+      const { data: theirDislikesRows = [], error: theirDislikesErr } =
+        await supabase
+          .from("dislikes")
+          .select("disliker_id")
+          .eq("dislikee_id", me.id);
+      if (theirDislikesErr)
+        console.error("Error fetching others' dislikes:", theirDislikesErr);
+      const theirDislikedIds = new Set(
+        theirDislikesRows.map((r) => r.disliker_id)
+      );
+
+      // 6) fetch chats and messages
       const { data: chatRows = [], error: chatsErr } = await supabase
         .from("chats")
         .select("id, match_id")
@@ -162,7 +202,7 @@ export default function ChatsScreen() {
         }
       });
 
-      // 6) build filtered chats list
+      // 7) build filtered chats list
       const newChats = [];
       chatRows.forEach((c) => {
         const stats = chatStats[c.id] || {
@@ -178,18 +218,21 @@ export default function ChatsScreen() {
         ) {
           newChats.push({
             matchId: c.match_id,
-            user: userMap[otherId],
+            user: userMap[otherByMatch[c.match_id]],
             lastMessage: lastMsgByChat[c.id] ?? null,
           });
         }
       });
 
-      // 7) build matches strip (no chats, mutual likes only)
+      // 8) build matches strip (no chats, mutual likes only, and no dislikes)
       const chatMatchIds = new Set(newChats.map((c) => c.matchId));
       const newMatches = matchRows
         .filter((m) => {
           if (chatMatchIds.has(m.id)) return false;
           const otherId = otherByMatch[m.id];
+          if (myDislikedIds.has(otherId) || theirDislikedIds.has(otherId)) {
+            return false;
+          }
           return myLikedIds.has(otherId) && theirLikedIds.has(otherId);
         })
         .map((m) => userMap[otherByMatch[m.id]]);
@@ -235,6 +278,7 @@ export default function ChatsScreen() {
                     params: { user: u },
                   })
                 }
+                onLongPress={() => handleUnmatch(u.id)}
               />
             ))}
           </ScrollView>
