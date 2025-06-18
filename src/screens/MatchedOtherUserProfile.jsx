@@ -19,12 +19,12 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../Lib/supabase";
 
-export default function OtherUserProfile() {
+export default function MatchedOtherUserProfile() {
   const navigation = useNavigation();
   const route = useRoute();
   const user = route.params?.user;
   // “user” here contains only basic fields (firstName, age, etc.)
-  const [isMatched, setIsMatched] = useState(false);
+
   const [currentUser, setCurrentUser] = useState(null);
   const [images, setImages] = useState([]); // will hold this other user’s image URLs
   const [loadingImages, setLoadingImages] = useState(true);
@@ -58,25 +58,6 @@ export default function OtherUserProfile() {
       }
     })();
   }, []);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    (async () => {
-      const { data: matchRow, error } = await supabase
-        .from("matches")
-        .select("id")
-        .or(
-          `and(user_a.eq.${currentUser.id},user_b.eq.${user.id}),` +
-            `and(user_a.eq.${user.id},user_b.eq.${currentUser.id})`
-        )
-        .maybeSingle();
-      if (error) {
-        console.error("Error checking match:", error);
-      } else {
-        setIsMatched(!!matchRow);
-      }
-    })();
-  }, [currentUser, user.id]);
 
   // 2) Fetch this “other user’s” images
   useEffect(() => {
@@ -258,17 +239,9 @@ export default function OtherUserProfile() {
           <View style={{ marginTop: 20 }}>
             <Button title="Send Message" onPress={handleMessage} />
             <View style={{ height: 12 }} />
-            {!isMatched && (
-              <>
-                <Button title="Like" onPress={handleLike} />
-                <View style={{ height: 12 }} />
-              </>
-            )}
+            <Button title="Like" onPress={handleLike} />
             <View style={{ height: 12 }} />
-            <Button
-              title={isMatched ? "Unmatch" : "Dislike"}
-              onPress={handleDislike}
-            />
+            <Button title="Unmatch" onPreess={handleDislike} />
           </View>
         </View>
       </ScrollView>
