@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  Image, // ← added
+  Image,
   FlatList,
   TextInput,
   Button,
@@ -12,7 +12,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  TouchableOpacity,
+  TouchableOpacity, // ← already here
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../Lib/supabase";
@@ -31,14 +31,23 @@ export default function SingleChatScreen() {
   // Set header options with avatar + name, and back button
   useEffect(() => {
     navigation.setOptions({
-      headerTitleAlign: "center", // center the custom title
+      headerTitleAlign: "center",
       headerTitle: () => (
         <View style={styles.headerTitleContainer}>
           {otherUser?.photoUrl && (
-            <Image
-              source={{ uri: otherUser.photoUrl }}
-              style={styles.headerAvatar}
-            />
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("Home", {
+                  screen: "OtherUserProfile",
+                  params: { user: otherUser },
+                })
+              }
+            >
+              <Image
+                source={{ uri: otherUser.photoUrl }}
+                style={styles.headerAvatar}
+              />
+            </TouchableOpacity>
           )}
           <Text style={styles.headerTitleText}>
             {otherUser?.firstName || "Chat"}
@@ -359,7 +368,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
   },
-  // ——— New header styles ———
+  // ——— Header styles ———
   headerTitleContainer: {
     alignItems: "center",
   },
