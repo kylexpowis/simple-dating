@@ -1,7 +1,9 @@
+// src/screens/SingleChatScreen.jsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
+  Image, // ← added
   FlatList,
   TextInput,
   Button,
@@ -26,10 +28,23 @@ export default function SingleChatScreen() {
     otherUser = { id: route.params.otherUserId };
   }
 
-  // Set header options with back button routing to Chats tab
+  // Set header options with avatar + name, and back button
   useEffect(() => {
     navigation.setOptions({
-      title: otherUser?.firstName || "Chat",
+      headerTitleAlign: "center", // center the custom title
+      headerTitle: () => (
+        <View style={styles.headerTitleContainer}>
+          {otherUser?.photoUrl && (
+            <Image
+              source={{ uri: otherUser.photoUrl }}
+              style={styles.headerAvatar}
+            />
+          )}
+          <Text style={styles.headerTitleText}>
+            {otherUser?.firstName || "Chat"}
+          </Text>
+        </View>
+      ),
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.navigate("Chats")}
@@ -39,7 +54,7 @@ export default function SingleChatScreen() {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, otherUser?.firstName]);
+  }, [navigation, otherUser?.firstName, otherUser?.photoUrl]);
 
   const [me, setMe] = useState(null);
   const [chatId, setChatId] = useState(null);
@@ -343,5 +358,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginRight: 8,
+  },
+  // ——— New header styles ———
+  headerTitleContainer: {
+    alignItems: "center",
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginBottom: 4,
+  },
+  headerTitleText: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
