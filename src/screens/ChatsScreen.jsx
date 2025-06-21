@@ -127,7 +127,7 @@ export default function ChatsScreen() {
         });
       }
 
-      // 4) fetch likes: who I liked & who liked me
+      // 4) fetch likes
       const { data: myLikesRows = [], error: myLikesErr } = await supabase
         .from("likes")
         .select("likee_id")
@@ -143,7 +143,7 @@ export default function ChatsScreen() {
         console.error("Error fetching others' likes:", theirLikesErr);
       const theirLikedIds = new Set(theirLikesRows.map((r) => r.liker_id));
 
-      // 5) fetch dislikes: who I disliked & who disliked me
+      // 5) fetch dislikes
       const { data: myDislikesRows = [], error: myDislikesErr } = await supabase
         .from("dislikes")
         .select("dislikee_id")
@@ -203,15 +203,11 @@ export default function ChatsScreen() {
       });
 
       // 7) build filtered chats list
-      const newChats = [];
+      let newChats = [];
       chatRows.forEach((c) => {
-        const stats = chatStats[c.id] || {
-          fromOther: false,
-          fromMe: false,
-        };
+        const stats = chatStats[c.id] || { fromOther: false, fromMe: false };
         const otherId = otherByMatch[c.match_id];
         const mutual = myLikedIds.has(otherId) && theirLikedIds.has(otherId);
-        // include if both have talked, OR mutual like + at least one message
         if (
           (stats.fromOther && stats.fromMe) ||
           (mutual && (stats.fromOther || stats.fromMe))
@@ -224,7 +220,14 @@ export default function ChatsScreen() {
         }
       });
 
-      // 8) build matches strip (no chats, mutual likes only, and no dislikes)
+      // ——— Sort by most recent message first ———
+      newChats.sort((a, b) => {
+        const aTime = a.lastMessage ? new Date(a.lastMessage.sent_at) : 0;
+        const bTime = b.lastMessage ? new Date(b.lastMessage.sent_at) : 0;
+        return bTime - aTime;
+      });
+
+      // 8) build matches strip (unchanged)
       const chatMatchIds = new Set(newChats.map((c) => c.matchId));
       const newMatches = matchRows
         .filter((m) => {
@@ -239,7 +242,7 @@ export default function ChatsScreen() {
 
       if (isMounted) {
         setMatches(newMatches);
-        setChats(newChats);
+        setChats(newChats); // now already sorted
         setLoading(false);
       }
     })();
