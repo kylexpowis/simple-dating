@@ -1,4 +1,3 @@
-// src/screens/SingleChatScreen.jsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -12,7 +11,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  TouchableOpacity, // ← already here
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../Lib/supabase";
@@ -39,7 +38,10 @@ export default function SingleChatScreen() {
               onPress={() =>
                 navigation.navigate("Home", {
                   screen: "OtherUserProfile",
-                  params: { user: otherUser },
+                  params: {
+                    user: otherUser,
+                    hideSendMessage: true, // ← flag passed here
+                  },
                 })
               }
             >
@@ -207,14 +209,13 @@ export default function SingleChatScreen() {
     const content = newMessage.trim();
     const tempId = Date.now().toString(); // Temporary ID for optimistic update
     const payload = {
-      id: tempId, // Temporary ID
+      id: tempId,
       chat_id: chatId,
       sender_id: me.id,
       content,
       sent_at: new Date().toISOString(),
     };
 
-    // Optimistic UI update
     setMessages((prev) => [...prev, payload]);
     setNewMessage("");
     setIsSending(true);
@@ -226,18 +227,14 @@ export default function SingleChatScreen() {
         .select()
         .single();
 
-      if (insertErr) {
-        throw insertErr;
-      }
+      if (insertErr) throw insertErr;
 
-      // Replace the temporary message with the real one from the database
       setMessages((prev) => [
         ...prev.filter((msg) => msg.id !== tempId),
         insertedMessage,
       ]);
     } catch (err) {
       console.error("Message send error:", err);
-      // Rollback optimistic update
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
       Alert.alert(
         "Message not sent",
@@ -368,7 +365,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
   },
-  // ——— Header styles ———
   headerTitleContainer: {
     alignItems: "center",
   },
