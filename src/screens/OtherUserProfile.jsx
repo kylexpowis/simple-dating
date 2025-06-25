@@ -1,3 +1,5 @@
+// src/screens/OtherUserProfile.jsx
+
 import React, { useRef, useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -21,7 +23,7 @@ export default function OtherUserProfile() {
   const navigation = useNavigation();
   const route = useRoute();
   const user = route.params?.user;
-  const hideSend = route.params?.hideSendMessage;  // ← new flag
+  const hideSend = route.params?.hideSendMessage;
 
   const [isMatched, setIsMatched] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -29,6 +31,7 @@ export default function OtherUserProfile() {
   const [loadingImages, setLoadingImages] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Back‐button
   useEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
@@ -42,18 +45,18 @@ export default function OtherUserProfile() {
     });
   }, [navigation]);
 
+  // Load current user
   useEffect(() => {
     (async () => {
       const {
         data: { user: me },
         error: meErr,
       } = await supabase.auth.getUser();
-      if (!meErr) {
-        setCurrentUser(me);
-      }
+      if (!meErr) setCurrentUser(me);
     })();
   }, []);
 
+  // Check match status
   useEffect(() => {
     if (!currentUser) return;
     (async () => {
@@ -69,6 +72,7 @@ export default function OtherUserProfile() {
     })();
   }, [currentUser, user.id]);
 
+  // Load images carousel
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -79,13 +83,8 @@ export default function OtherUserProfile() {
           .eq("user_id", user.id)
           .order("uploaded_at", { ascending: true });
         if (imgErr) throw imgErr;
-
         if (isMounted) {
-          if (imgs && imgs.length > 0) {
-            setImages(imgs.map((r) => r.url));
-          } else {
-            setImages([user.photoUrl]);
-          }
+          setImages(imgs.length ? imgs.map((r) => r.url) : [user.photoUrl]);
         }
       } catch (e) {
         if (isMounted) {
@@ -96,12 +95,12 @@ export default function OtherUserProfile() {
         if (isMounted) setLoadingImages(false);
       }
     })();
-
     return () => {
       isMounted = false;
     };
   }, [user.id, user.photoUrl]);
 
+  // Like handler
   const handleLike = async () => {
     if (!currentUser) return;
     try {
@@ -115,6 +114,7 @@ export default function OtherUserProfile() {
     }
   };
 
+  // Dislike handler
   const handleDislike = async () => {
     if (!currentUser) return;
     try {
@@ -128,6 +128,26 @@ export default function OtherUserProfile() {
     }
   };
 
+  // **Unmatch** handler
+  const handleUnmatch = async () => {
+    if (!currentUser) return;
+    try {
+      await supabase
+        .from("matches")
+        .delete()
+        .or(
+          `and(user_a.eq.${currentUser.id},user_b.eq.${user.id}),` +
+            `and(user_a.eq.${user.id},user_b.eq.${currentUser.id})`
+        );
+      Alert.alert("Unmatched", `You have unmatched ${user.firstName}.`);
+      navigation.goBack();
+    } catch (e) {
+      console.error("Unmatch error:", e);
+      Alert.alert("Could not unmatch user.");
+    }
+  };
+
+  // Message handler
   const handleMessage = () => {
     const tabNav = navigation.getParent();
     if (tabNav) {
@@ -140,6 +160,7 @@ export default function OtherUserProfile() {
     }
   };
 
+  // Carousel controls
   const flatListRef = useRef(null);
   const onNext = () => {
     if (currentIndex < images.length - 1) {
@@ -225,7 +246,7 @@ export default function OtherUserProfile() {
           <Text>Drugs: {user.drugs}</Text>
 
           <View style={{ marginTop: 20 }}>
-            {!hideSend && (           // ← only show when flag is false/undefined
+            {!hideSend && (
               <>
                 <Button title="Send Message" onPress={handleMessage} />
                 <View style={{ height: 12 }} />
@@ -239,7 +260,7 @@ export default function OtherUserProfile() {
             )}
             <Button
               title={isMatched ? "Unmatch" : "Dislike"}
-              onPress={handleDislike}
+              onPress={isMatched ? handleUnmatch : handleDislike}
             />
           </View>
         </View>
