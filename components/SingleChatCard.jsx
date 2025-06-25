@@ -1,21 +1,15 @@
-// src/components/SingleChatCard.jsx
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-export default function SingleChatCard({ user, lastMessage }) {
-  const navigation = useNavigation();
-
+export default function SingleChatCard({
+  user,
+  lastMessage,
+  unreadCount = 0,
+  onPress,
+}) {
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() =>
-        navigation.navigate("Home", {
-          screen: "SingleChatScreen",
-          params: { otherUser: user },
-        })
-      }
-    >
+    <TouchableOpacity style={styles.container} onPress={onPress}>
       {user.photoUrl ? (
         <Image source={{ uri: user.photoUrl }} style={styles.avatar} />
       ) : (
@@ -35,6 +29,7 @@ export default function SingleChatCard({ user, lastMessage }) {
           })}
         </Text>
       )}
+      {unreadCount > 0 && <View style={styles.unreadDot} />}
     </TouchableOpacity>
   );
 }
@@ -48,6 +43,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
     borderColor: "#f0f0f0",
+    position: "relative",
   },
   avatar: {
     width: AVATAR_SIZE,
@@ -62,21 +58,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#ddd",
     marginRight: 12,
   },
-  textContainer: {
-    flex: 1,
-  },
-  name: {
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  message: {
-    color: "#555",
-    marginTop: 4,
-    fontSize: 14,
-  },
-  time: {
-    fontSize: 12,
-    color: "#999",
-    marginLeft: 8,
+  textContainer: { flex: 1 },
+  name: { fontWeight: "600", fontSize: 16 },
+  message: { color: "#555", marginTop: 4, fontSize: 14 },
+  time: { fontSize: 12, color: "#999", marginLeft: 8 },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#007AFF",
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    marginTop: -5,
   },
 });
