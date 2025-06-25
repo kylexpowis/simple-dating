@@ -27,7 +27,7 @@ export default function SingleChatScreen() {
     otherUser = { id: route.params.otherUserId };
   }
 
-  // Set header options with avatar + name, and back button
+  // — Header: avatar + name + back button —
   useEffect(() => {
     navigation.setOptions({
       headerTitleAlign: "center",
@@ -38,10 +38,7 @@ export default function SingleChatScreen() {
               onPress={() =>
                 navigation.navigate("Home", {
                   screen: "OtherUserProfile",
-                  params: {
-                    user: otherUser,
-                    hideSendMessage: true, // ← flag passed here
-                  },
+                  params: { user: otherUser, hideSendMessage: true },
                 })
               }
             >
@@ -82,6 +79,7 @@ export default function SingleChatScreen() {
 
     (async () => {
       try {
+        // 1) session
         const {
           data: { session },
           error: sessErr,
@@ -93,7 +91,8 @@ export default function SingleChatScreen() {
         if (!mounted) return;
         setMe(meUser);
 
-        const { data: existingMatch, error: matchLookupErr } = await supabase
+        // 2) match lookup/creation
+        const { data: existingMatch, error: matchErr } = await supabase
           .from("matches")
           .select("id")
           .or(
@@ -101,13 +100,11 @@ export default function SingleChatScreen() {
               `and(user_a.eq.${otherUser.id},user_b.eq.${meUser.id})`
           )
           .maybeSingle();
-        if (matchLookupErr) {
-          throw matchLookupErr;
-        }
+        if (matchErr) throw matchErr;
 
         let matchRecord = existingMatch;
         if (!matchRecord) {
-          const { data: insertedMatch, error: insertMatchErr } = await supabase
+          const { data: insertedMatch, error: insertErr } = await supabase
             .from("matches")
             .insert([
               {
@@ -118,56 +115,59 @@ export default function SingleChatScreen() {
             ])
             .select("id")
             .single();
-
-          if (insertMatchErr) {
-            throw insertMatchErr;
-          }
+          if (insertErr) throw insertErr;
           matchRecord = insertedMatch;
         }
-
         if (!mounted) return;
-        const matchId = matchRecord.id;
 
-        const { data: existingChat, error: chatLookupErr } = await supabase
+        // 3) chat lookup/creation
+        const matchId = matchRecord.id;
+        const { data: existingChat, error: chatErr } = await supabase
           .from("chats")
           .select("id")
           .eq("match_id", matchId)
           .maybeSingle();
-        if (chatLookupErr) {
-          throw chatLookupErr;
-        }
+        if (chatErr) throw chatErr;
 
         let chatRecord = existingChat;
         if (!chatRecord) {
-          const { data: newChat, error: createChatErr } = await supabase
+          const { data: newChat, error: createErr } = await supabase
             .from("chats")
             .insert({ match_id: matchId })
             .select("id")
             .single();
-
-          if (createChatErr) {
-            throw createChatErr;
-          }
+          if (createErr) throw createErr;
           chatRecord = newChat;
         }
-
         if (!mounted) return;
+
         setChatId(chatRecord.id);
 
+        // 4) load history
         const { data: history, error: histErr } = await supabase
           .from("messages")
           .select("*")
           .eq("chat_id", chatRecord.id)
           .order("sent_at", { ascending: true });
-        if (histErr) {
-          throw histErr;
-        } else if (mounted) {
+        if (histErr) throw histErr;
+
+        if (mounted) {
           setMessages(history);
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: false });
-          }, 100);
+
+          // ← IMMEDIATELY mark all incoming as read
+          await supabase
+            .from("messages")
+            .update({ is_read: true })
+            .eq("chat_id", chatRecord.id)
+            .neq("sender_id", meUser.id);
+
+          setTimeout(
+            () => flatListRef.current?.scrollToEnd({ animated: false }),
+            100
+          );
         }
 
+        // 5) subscribe to new messages
         channelRef.current = supabase
           .channel(`chat_messages_${chatRecord.id}`)
           .on(
@@ -178,9 +178,9 @@ export default function SingleChatScreen() {
               table: "messages",
               filter: `chat_id=eq.${chatRecord.id}`,
             },
-            (payload) => {
+            ({ new: newMsg }) => {
               if (!mounted) return;
-              setMessages((prev) => [...prev, payload.new]);
+              setMessages((prev) => [...prev, newMsg]);
               flatListRef.current?.scrollToEnd({ animated: true });
             }
           )
@@ -201,13 +201,12 @@ export default function SingleChatScreen() {
     };
   }, [otherUser?.id]);
 
+  // 6) send message
   const handleSend = async () => {
-    if (!newMessage.trim() || !me || !chatId || isSending) {
-      return;
-    }
+    if (!newMessage.trim() || !me || !chatId || isSending) return;
 
     const content = newMessage.trim();
-    const tempId = Date.now().toString(); // Temporary ID for optimistic update
+    const tempId = Date.now().toString();
     const payload = {
       id: tempId,
       chat_id: chatId,
@@ -216,26 +215,23 @@ export default function SingleChatScreen() {
       sent_at: new Date().toISOString(),
     };
 
+    // Optimistic UI
     setMessages((prev) => [...prev, payload]);
     setNewMessage("");
     setIsSending(true);
 
     try {
-      const { data: insertedMessage, error: insertErr } = await supabase
+      const { data: inserted, error: insertErr } = await supabase
         .from("messages")
         .insert([payload])
         .select()
         .single();
-
       if (insertErr) throw insertErr;
 
-      setMessages((prev) => [
-        ...prev.filter((msg) => msg.id !== tempId),
-        insertedMessage,
-      ]);
+      setMessages((prev) => [...prev.filter((m) => m.id !== tempId), inserted]);
     } catch (err) {
       console.error("Message send error:", err);
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       Alert.alert(
         "Message not sent",
         err.message || "Could not send message. Please try again."
@@ -252,7 +248,6 @@ export default function SingleChatScreen() {
       </View>
     );
   }
-
   if (!me || chatId === null) {
     return (
       <View style={styles.center}>
@@ -273,7 +268,7 @@ export default function SingleChatScreen() {
           data={messages}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => {
-            const isMe = me && item.sender_id === me.id;
+            const isMe = item.sender_id === me.id;
             return (
               <View
                 style={[
@@ -283,7 +278,7 @@ export default function SingleChatScreen() {
               >
                 <Text style={styles.messageText}>{item.content}</Text>
                 {item.id.toString().length > 15 && (
-                  <Text style={styles.sendingText}>Sending...</Text>
+                  <Text style={styles.sendingText}>Sending…</Text>
                 )}
               </View>
             );
@@ -317,31 +312,12 @@ export default function SingleChatScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1 },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: {
-    color: "red",
-    padding: 20,
-    textAlign: "center",
-  },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  errorText: { color: "red", padding: 20, textAlign: "center" },
   chatContent: { padding: 16, paddingBottom: 0 },
-  bubble: {
-    marginVertical: 4,
-    padding: 10,
-    borderRadius: 16,
-    maxWidth: "75%",
-  },
-  myBubble: {
-    alignSelf: "flex-end",
-    backgroundColor: "#DCF8C5",
-  },
-  theirBubble: {
-    alignSelf: "flex-start",
-    backgroundColor: "#ECECEC",
-  },
+  bubble: { marginVertical: 4, padding: 10, borderRadius: 16, maxWidth: "75%" },
+  myBubble: { alignSelf: "flex-end", backgroundColor: "#DCF8C5" },
+  theirBubble: { alignSelf: "flex-start", backgroundColor: "#ECECEC" },
   messageText: { fontSize: 16 },
   sendingText: {
     fontSize: 10,
@@ -365,17 +341,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
   },
-  headerTitleContainer: {
-    alignItems: "center",
-  },
-  headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginBottom: 4,
-  },
-  headerTitleText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  headerTitleContainer: { alignItems: "center" },
+  headerAvatar: { width: 40, height: 40, borderRadius: 20, marginBottom: 4 },
+  headerTitleText: { fontSize: 16, fontWeight: "bold" },
 });
