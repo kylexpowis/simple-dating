@@ -1,90 +1,61 @@
-import React, { useEffect, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { Text, View, Animated, PanResponder, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
 import { supabase } from "../../Lib/supabase";
 
+/* ───── configurable feel ───────────────────────────────────────── */
+const SWIPE_THRESHOLD = 120; // px to trigger like / dislike
+const MAX_ROTATION = 8; // deg tilt at threshold
+const MAX_SINK = 12; // px card “drops” while dragging
+/* ───────────────────────────────────────────────────────────────── */
+
 export default function HomeScreen({ navigation }) {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myId, setMyId] = useState(null);
 
+  /* ─────────────── 1. Load profiles (same logic) ───────────────── */
   useEffect(() => {
-    async function loadProfiles() {
+    (async () => {
       setLoading(true);
-
       try {
-        // 1) Get current user
+        /* current user */
         const {
           data: { session },
           error: sessionErr,
         } = await supabase.auth.getSession();
-        if (sessionErr || !session) {
-          console.error("Could not fetch session:", sessionErr);
-        }
-        const myId = session?.user?.id;
+        if (sessionErr || !session) console.error("Session error:", sessionErr);
+        const me = session?.user?.id;
+        setMyId(me);
 
-        // 2) Fetch IDs I have liked
-        const { data: likedRows = [], error: likedErr } = await supabase
-          .from("likes")
-          .select("likee_id")
-          .eq("liker_id", myId);
-        if (likedErr) console.error("Error loading my likes:", likedErr);
-        const myLikedIds = new Set(likedRows.map((r) => r.likee_id));
+        /* likes / dislikes already made */
+        const [{ data: likedRows = [] }, { data: dislikedRows = [] }] =
+          await Promise.all([
+            supabase.from("likes").select("likee_id").eq("liker_id", me),
+            supabase
+              .from("dislikes")
+              .select("dislikee_id")
+              .eq("disliker_id", me),
+          ]);
 
-        // 2.5) Fetch IDs I have disliked
-        const { data: dislikedRows = [], error: dislikedErr } = await supabase
-          .from("dislikes")
-          .select("dislikee_id")
-          .eq("disliker_id", myId);
-        if (dislikedErr)
-          console.error("Error loading my dislikes:", dislikedErr);
-        const myDislikedIds = new Set(dislikedRows.map((r) => r.dislikee_id));
+        const likedIds = new Set(likedRows.map((r) => r.likee_id));
+        const dislikedIds = new Set(dislikedRows.map((r) => r.dislikee_id));
 
-        // 3) Fetch matches involving me
-        const { data: matchRows = [], error: matchErr } = await supabase
-          .from("matches")
-          .select("user_a,user_b")
-          .or(`user_a.eq.${myId},user_b.eq.${myId}`);
-        if (matchErr) {
-          console.error("Error loading matches:", matchErr);
-        }
-        const myMatchedIds = new Set(
-          matchRows.map((m) => (m.user_a === myId ? m.user_b : m.user_a))
-        );
-
-        // 4) Fetch all users + their first image
+        /* all users + first image */
         const { data, error } = await supabase.from("users").select(`
-          id,
-          first_name,
-          age,
-          city,
-          country,
-          ethnicities,
-          relationship,
-          has_kids,
-          wants_kids,
-          religion,
-          alcohol,
-          cigarettes,
-          weed,
-          drugs,
-          bio,
+          id, first_name, age, city, country, ethnicities, relationship,
+          has_kids, wants_kids, religion, alcohol, cigarettes, weed, drugs, bio,
           user_images ( url )
         `);
-        if (error) {
-          console.error("Error fetching profiles:", error);
-          setProfiles([]);
-        } else {
-          // 5) Filter out: me, anyone I’ve liked, anyone I’ve disliked
-          const filtered = data.filter((u) => {
-            if (u.id === myId) return false;
-            if (myLikedIds.has(u.id)) return false;
-            if (myDislikedIds.has(u.id)) return false;
-            return true;
-          });
+        if (error) throw error;
 
-          // 6) Massage into shape for ProfileCard
-          const formatted = filtered.map((u) => ({
+        /* filter & shape for <ProfileCard> */
+        const formatted = data
+          .filter(
+            (u) => u.id !== me && !likedIds.has(u.id) && !dislikedIds.has(u.id)
+          )
+          .map((u) => ({
             id: u.id,
             firstName: u.first_name,
             age: u.age,
@@ -101,19 +72,109 @@ export default function HomeScreen({ navigation }) {
             bio: u.bio,
             photoUrl: u.user_images?.[0]?.url || null,
           }));
-          setProfiles(formatted);
-        }
+        setProfiles(formatted);
       } catch (err) {
-        console.error("Unexpected error loading profiles:", err);
+        console.error("Error loading profiles:", err);
         setProfiles([]);
       } finally {
         setLoading(false);
       }
-    }
-
-    loadProfiles();
+    })();
   }, []);
 
+  /* ───────────── 2. Write like / dislike rows ─────────────────── */
+  const handleLike = useCallback(
+    async (likeeId) => {
+      setProfiles((p) => p.filter((u) => u.id !== likeeId)); // optimistic
+      try {
+        await supabase
+          .from("likes")
+          .insert({ liker_id: myId, likee_id: likeeId });
+      } catch (e) {
+        console.error("Error saving like:", e);
+      }
+    },
+    [myId]
+  );
+
+  const handleDislike = useCallback(
+    async (dislikeeId) => {
+      setProfiles((p) => p.filter((u) => u.id !== dislikeeId));
+      try {
+        await supabase
+          .from("dislikes")
+          .insert({ disliker_id: myId, dislikee_id: dislikeeId });
+      } catch (e) {
+        console.error("Error saving dislike:", e);
+      }
+    },
+    [myId]
+  );
+
+  /* ───────── 3. One swipe-enabled card component ──────────────── */
+  function SwipeableProfileCard({ user }) {
+    const translateX = useRef(new Animated.Value(0)).current;
+
+    const rotateZ = translateX.interpolate({
+      inputRange: [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
+      outputRange: [`-${MAX_ROTATION}deg`, "0deg", `${MAX_ROTATION}deg`],
+      extrapolate: "clamp",
+    });
+
+    const translateY = translateX.interpolate({
+      inputRange: [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
+      outputRange: [MAX_SINK, 0, MAX_SINK],
+      extrapolate: "clamp",
+    });
+
+    const pan = useRef(
+      PanResponder.create({
+        /* don’t steal taps — only start on noticeable horizontal drag */
+        onMoveShouldSetPanResponder: (_, g) =>
+          Math.abs(g.dx) > Math.abs(g.dy) && Math.abs(g.dx) > 5,
+        onPanResponderMove: Animated.event([null, { dx: translateX }], {
+          useNativeDriver: false,
+        }),
+        onPanResponderRelease: (_, g) => {
+          if (g.dx > SWIPE_THRESHOLD) {
+            Animated.timing(translateX, {
+              toValue: 500,
+              duration: 200,
+              useNativeDriver: true,
+            }).start(() => handleLike(user.id));
+          } else if (g.dx < -SWIPE_THRESHOLD) {
+            Animated.timing(translateX, {
+              toValue: -500,
+              duration: 200,
+              useNativeDriver: true,
+            }).start(() => handleDislike(user.id));
+          } else {
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+      })
+    ).current;
+
+    return (
+      <Animated.View
+        style={{
+          transform: [{ translateX }, { translateY }, { rotateZ }],
+          marginVertical: 4,
+        }}
+        {...pan.panHandlers}
+      >
+        <ProfileCard
+          {...user}
+          onPress={() => navigation.navigate("OtherUserProfile", { user })}
+        />
+      </Animated.View>
+    );
+  }
+
+  /* ───────────── 4. Render ─────────────────────────────────────── */
   if (loading) {
     return (
       <SafeAreaView
@@ -130,20 +191,13 @@ export default function HomeScreen({ navigation }) {
       <FlatList
         data={profiles}
         keyExtractor={(u) => u.id}
-        renderItem={({ item }) => (
-          <ProfileCard
-            {...item}
-            onPress={() =>
-              navigation.navigate("OtherUserProfile", { user: item })
-            }
-          />
-        )}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={() => (
           <View className="flex-1 justify-center items-center">
             <Text>No profiles found.</Text>
           </View>
         )}
+        renderItem={({ item }) => <SwipeableProfileCard user={item} />}
       />
     </SafeAreaView>
   );
