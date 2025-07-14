@@ -15,6 +15,7 @@ import {
   Alert,
   StyleSheet,
   Dimensions,
+  Modal,
 } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -40,7 +41,7 @@ function EditProfileScreen() {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
-  const [ethnicities, setEthnicities] = useState("");
+  const [ethnicities, setEthnicities] = useState([]);
   const [relationship, setRelationship] = useState("");
   const [hasKids, setHasKids] = useState(false);
   const [wantsKids, setWantsKids] = useState(false);
@@ -49,6 +50,78 @@ function EditProfileScreen() {
   const [cigarettes, setCigarettes] = useState("");
   const [weed, setWeed] = useState("");
   const [drugs, setDrugs] = useState("");
+
+  const ETHNICITY_OPTIONS = [
+    "Black / African Descent",
+    "Black / Caribbean Descent",
+    "White / European Descent",
+    "Latino / Hispanic",
+    "East Asian",
+    "South Asian",
+    "Southeast Asian",
+    "Middle Eastern",
+    "North African",
+    "Native American / Indigenous",
+    "Pacific Islander",
+    "Mixed Ethnicity",
+    "Other",
+  ];
+
+  const [ethnicityModalVisible, setEthnicityModalVisible] = useState(false);
+
+  const toggleEthnicity = (option) => {
+    setEthnicities((curr) =>
+      curr.includes(option)
+        ? curr.filter((e) => e !== option)
+        : [...curr, option]
+    );
+  };
+
+  const LOOKING_FOR_OPTIONS = [
+    "Casual",
+    "Relationship",
+    "Short-Term Fun",
+    "Friends First",
+    "Friends",
+    "Polyamory",
+    "Monogamy",
+    "Open Relationship",
+    "Just Chatting",
+  ];
+  const [lookingForModalVisible, setLookingForModalVisible] = useState(false);
+
+  const HAS_KIDS_OPTIONS = ["Yes", "No"];
+  const [hasKidsModalVisible, setHasKidsModalVisible] = useState(false);
+
+  const WANTS_KIDS_OPTIONS = ["Yes", "No", "Not Sure"];
+  const [wantsKidsModalVisible, setWantsKidsModalVisible] = useState(false);
+
+  const RELIGION_OPTIONS = [
+    "Agnostic",
+    "Atheist",
+    "Buddhist",
+    "Catholic",
+    "Christian",
+    "Hindu",
+    "Jewish",
+    "Muslim",
+    "Sikh",
+    "Spiritual",
+    "Other",
+  ];
+  const [religionModalVisible, setReligionModalVisible] = useState(false);
+
+  const ALCOHOL_OPTIONS = ["Yes", "No", "Social"];
+  const [alcoholModalVisible, setAlcoholModalVisible] = useState(false);
+
+  const CIGARETTES_OPTIONS = ["Yes", "No", "Social"];
+  const [cigarettesModalVisible, setCigarettesModalVisible] = useState(false);
+
+  const WEED_OPTIONS = ["Yes", "No", "Social", "420"];
+  const [weedModalVisible, setWeedModalVisible] = useState(false);
+
+  const DRUGS_OPTIONS = ["Yes", "No", "Sometimes"];
+  const [drugsModalVisible, setDrugsModalVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -85,7 +158,7 @@ function EditProfileScreen() {
         setCity(usr.city || "");
         setCountry(usr.country || "");
         setBio(usr.bio || "");
-        setEthnicities((usr.ethnicities || []).join(", "));
+        setEthnicities(usr.ethnicities || []);
         setRelationship(usr.relationship || "");
         setHasKids(!!usr.has_kids);
         setWantsKids(!!usr.wants_kids);
@@ -158,7 +231,7 @@ function EditProfileScreen() {
         arrayBuffer.byteLength,
         "mimeType:",
         mimeType
-      ); 
+      );
       if (arrayBuffer.byteLength === 0) {
         throw new Error("Decoded ArrayBuffer is 0 bytes!");
       }
@@ -361,7 +434,7 @@ function EditProfileScreen() {
         city,
         country,
         bio,
-        ethnicities: ethnicities.split(",").map((s) => s.trim()),
+        ethnicities,
         relationship,
         has_kids: hasKids,
         wants_kids: wantsKids,
@@ -463,59 +536,433 @@ function EditProfileScreen() {
       />
 
       <Text style={styles.section}>Ethnicities</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={ethnicities}
-        onChangeText={setEthnicities}
-      />
+        onPress={() => setEthnicityModalVisible(true)}
+      >
+        <Text>
+          {ethnicities.length > 0
+            ? ethnicities.join(", ")
+            : "Select ethnicities"}
+        </Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={ethnicityModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEthnicityModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {ETHNICITY_OPTIONS.map((opt) => {
+                const selected = ethnicities.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => toggleEthnicity(opt)}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Done"
+              onPress={() => setEthnicityModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>Looking for</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={relationship}
-        onChangeText={setRelationship}
-      />
+        onPress={() => setLookingForModalVisible(true)}
+      >
+        <Text>{relationship || "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={lookingForModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setLookingForModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {LOOKING_FOR_OPTIONS.map((opt) => {
+                const selected = relationship === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setRelationship(opt);
+                      setLookingForModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Cancel"
+              onPress={() => setLookingForModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>Has kids</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={hasKids ? "Yes" : "No"}
-        onChangeText={(t) => setHasKids(t === "Yes")}
-      />
+        onPress={() => setHasKidsModalVisible(true)}
+      >
+        <Text>{hasKids !== "" ? hasKids : "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={hasKidsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setHasKidsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {HAS_KIDS_OPTIONS.map((opt) => {
+                const selected = hasKids === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setHasKids(opt);
+                      setHasKidsModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Cancel"
+              onPress={() => setHasKidsModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
+      {/* Wants kids */}
       <Text style={styles.section}>Wants kids</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={wantsKids ? "Yes" : "No"}
-        onChangeText={(t) => setWantsKids(t === "Yes")}
-      />
+        onPress={() => setWantsKidsModalVisible(true)}
+      >
+        <Text>{wantsKids || "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={wantsKidsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setWantsKidsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {WANTS_KIDS_OPTIONS.map((opt) => {
+                const selected = wantsKids === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setWantsKids(opt);
+                      setWantsKidsModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Cancel"
+              onPress={() => setWantsKidsModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
+      {/* Religion */}
       <Text style={styles.section}>Religion</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={religion}
-        onChangeText={setReligion}
-      />
+        onPress={() => setReligionModalVisible(true)}
+      >
+        <Text>{religion || "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={religionModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReligionModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {RELIGION_OPTIONS.map((opt) => {
+                const selected = religion === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setReligion(opt);
+                      setReligionModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Cancel"
+              onPress={() => setReligionModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>Alcohol</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={alcohol}
-        onChangeText={setAlcohol}
-      />
+        onPress={() => setAlcoholModalVisible(true)}
+      >
+        <Text>{alcohol || "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={alcoholModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setAlcoholModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {ALCOHOL_OPTIONS.map((opt) => {
+                const selected = alcohol === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setAlcohol(opt);
+                      setAlcoholModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Cancel"
+              onPress={() => setAlcoholModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>Cigarettes</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={cigarettes}
-        onChangeText={setCigarettes}
-      />
+        onPress={() => setCigarettesModalVisible(true)}
+      >
+        <Text>{cigarettes || "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={cigarettesModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCigarettesModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {CIGARETTES_OPTIONS.map((opt) => {
+                const selected = cigarettes === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setCigarettes(opt);
+                      setCigarettesModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Cancel"
+              onPress={() => setCigarettesModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>Weed</Text>
-      <TextInput style={styles.input} value={weed} onChangeText={setWeed} />
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setWeedModalVisible(true)}
+      >
+        <Text>{weed || "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={weedModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setWeedModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {WEED_OPTIONS.map((opt) => {
+                const selected = weed === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setWeed(opt);
+                      setWeedModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button title="Cancel" onPress={() => setWeedModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>Drugs</Text>
-      <TextInput style={styles.input} value={drugs} onChangeText={setDrugs} />
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setDrugsModalVisible(true)}
+      >
+        <Text>{drugs || "Select an option"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={drugsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDrugsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {DRUGS_OPTIONS.map((opt) => {
+                const selected = drugs === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setDrugs(opt);
+                      setDrugsModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selected
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Cancel"
+              onPress={() => setDrugsModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <View style={{ marginVertical: 20 }}>
         <Button title="Update Profile" onPress={updateProfile} />
@@ -737,4 +1184,27 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, fontWeight: "bold" },
   location: { fontSize: 16, color: "#666", marginBottom: 12 },
   bio: { marginTop: 4, fontSize: 14, color: "#333" },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "80%",
+    maxHeight: "70%",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 16,
+  },
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  optionText: {
+    marginLeft: 8,
+    fontSize: 16,
+  },
 });
