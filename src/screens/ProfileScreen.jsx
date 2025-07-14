@@ -15,6 +15,7 @@ import {
   Alert,
   StyleSheet,
   Dimensions,
+  Modal,
 } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -40,7 +41,7 @@ function EditProfileScreen() {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
-  const [ethnicities, setEthnicities] = useState("");
+  const [ethnicities, setEthnicities] = useState([]);
   const [relationship, setRelationship] = useState("");
   const [hasKids, setHasKids] = useState(false);
   const [wantsKids, setWantsKids] = useState(false);
@@ -49,6 +50,32 @@ function EditProfileScreen() {
   const [cigarettes, setCigarettes] = useState("");
   const [weed, setWeed] = useState("");
   const [drugs, setDrugs] = useState("");
+
+  const ETHNICITY_OPTIONS = [
+    "Black / African Descent",
+    "Black / Caribbean Descent",
+    "White / European Descent",
+    "Latino / Hispanic",
+    "East Asian",
+    "South Asian",
+    "Southeast Asian",
+    "Middle Eastern",
+    "North African",
+    "Native American / Indigenous",
+    "Pacific Islander",
+    "Mixed Ethnicity",
+    "Other",
+  ];
+
+  const [ethnicityModalVisible, setEthnicityModalVisible] = useState(false);
+
+  const toggleEthnicity = (option) => {
+    setEthnicities((curr) =>
+      curr.includes(option)
+        ? curr.filter((e) => e !== option)
+        : [...curr, option]
+    );
+  };
 
   useEffect(() => {
     (async () => {
@@ -85,7 +112,7 @@ function EditProfileScreen() {
         setCity(usr.city || "");
         setCountry(usr.country || "");
         setBio(usr.bio || "");
-        setEthnicities((usr.ethnicities || []).join(", "));
+        setEthnicities(usr.ethnicities || []);
         setRelationship(usr.relationship || "");
         setHasKids(!!usr.has_kids);
         setWantsKids(!!usr.wants_kids);
@@ -158,7 +185,7 @@ function EditProfileScreen() {
         arrayBuffer.byteLength,
         "mimeType:",
         mimeType
-      ); 
+      );
       if (arrayBuffer.byteLength === 0) {
         throw new Error("Decoded ArrayBuffer is 0 bytes!");
       }
@@ -361,7 +388,7 @@ function EditProfileScreen() {
         city,
         country,
         bio,
-        ethnicities: ethnicities.split(",").map((s) => s.trim()),
+        ethnicities,
         relationship,
         has_kids: hasKids,
         wants_kids: wantsKids,
@@ -463,11 +490,50 @@ function EditProfileScreen() {
       />
 
       <Text style={styles.section}>Ethnicities</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        value={ethnicities}
-        onChangeText={setEthnicities}
-      />
+        onPress={() => setEthnicityModalVisible(true)}
+      >
+        <Text>
+          {ethnicities.length > 0
+            ? ethnicities.join(", ")
+            : "Select ethnicities"}
+        </Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={ethnicityModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEthnicityModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {ETHNICITY_OPTIONS.map((opt) => {
+                const selected = ethnicities.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => toggleEthnicity(opt)}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Done"
+              onPress={() => setEthnicityModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>Looking for</Text>
       <TextInput
@@ -737,4 +803,28 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, fontWeight: "bold" },
   location: { fontSize: 16, color: "#666", marginBottom: 12 },
   bio: { marginTop: 4, fontSize: 14, color: "#333" },
+
+  modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+modalContainer: {
+  width: "80%",
+  maxHeight: "70%",
+  backgroundColor: "#fff",
+  borderRadius: 8,
+  padding: 16,
+},
+optionRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingVertical: 8,
+},
+optionText: {
+  marginLeft: 8,
+  fontSize: 16,
+},
+
 });
