@@ -42,7 +42,7 @@ function EditProfileScreen() {
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
   const [ethnicities, setEthnicities] = useState([]);
-  const [relationship, setRelationship] = useState("");
+  const [lookingFor, setLookingFor] = useState([]);
   const [hasKids, setHasKids] = useState(false);
   const [wantsKids, setWantsKids] = useState(false);
   const [religion, setReligion] = useState("");
@@ -71,6 +71,14 @@ function EditProfileScreen() {
 
   const toggleEthnicity = (option) => {
     setEthnicities((curr) =>
+      curr.includes(option)
+        ? curr.filter((e) => e !== option)
+        : [...curr, option]
+    );
+  };
+
+  const toggleLookingFor = (option) => {
+    setLookingFor((curr) =>
       curr.includes(option)
         ? curr.filter((e) => e !== option)
         : [...curr, option]
@@ -159,7 +167,13 @@ function EditProfileScreen() {
         setCountry(usr.country || "");
         setBio(usr.bio || "");
         setEthnicities(usr.ethnicities || []);
-        setRelationship(usr.relationship || "");
+        setLookingFor(
+          Array.isArray(usr.relationship)
+            ? usr.relationship
+            : usr.relationship
+            ? [usr.relationship]
+            : []
+        );
         setHasKids(!!usr.has_kids);
         setWantsKids(!!usr.wants_kids);
         setReligion(usr.religion || "");
@@ -435,7 +449,7 @@ function EditProfileScreen() {
         country,
         bio,
         ethnicities,
-        relationship,
+        relationship: lookingFor,
         has_kids: hasKids,
         wants_kids: wantsKids,
         religion,
@@ -586,7 +600,11 @@ function EditProfileScreen() {
         style={styles.input}
         onPress={() => setLookingForModalVisible(true)}
       >
-        <Text>{relationship || "Select an option"}</Text>
+         <Text>
+          {lookingFor.length > 0
+            ? lookingFor.join(", ")
+            : "Select options"}
+        </Text>
       </TouchableOpacity>
       <Modal
         visible={lookingForModalVisible}
@@ -598,21 +616,18 @@ function EditProfileScreen() {
           <View style={styles.modalContainer}>
             <ScrollView>
               {LOOKING_FOR_OPTIONS.map((opt) => {
-                const selected = relationship === opt;
+                  const selected = lookingFor.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setRelationship(opt);
-                      setLookingForModalVisible(false);
-                    }}
+                    onPress={() => toggleLookingFor(opt)}
                   >
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                          ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -622,7 +637,7 @@ function EditProfileScreen() {
               })}
             </ScrollView>
             <Button
-              title="Cancel"
+              title="Done"
               onPress={() => setLookingForModalVisible(false)}
             />
           </View>
@@ -659,8 +674,8 @@ function EditProfileScreen() {
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                                        ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -708,8 +723,8 @@ function EditProfileScreen() {
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                                        ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -757,8 +772,8 @@ function EditProfileScreen() {
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                                       ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -805,8 +820,8 @@ function EditProfileScreen() {
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                                        ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -853,8 +868,8 @@ function EditProfileScreen() {
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                                        ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -901,8 +916,8 @@ function EditProfileScreen() {
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                                        ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -946,8 +961,8 @@ function EditProfileScreen() {
                     <MaterialIcons
                       name={
                         selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
+                                        ? "check-box"
+                          : "check-box-outline-blank"
                       }
                       size={24}
                     />
@@ -1008,7 +1023,7 @@ function PreviewProfileScreen() {
             country: "",
             bio: "",
             ethnicities: [],
-            relationship: "",
+            relationship: [],
             has_kids: false,
             wants_kids: false,
             religion: "",
@@ -1112,7 +1127,12 @@ function PreviewProfileScreen() {
 
         <Text style={styles.section}>Details</Text>
         <Text>Ethnicities: {(profile.ethnicities || []).join(", ")}</Text>
-        <Text>Looking for: {profile.relationship}</Text>
+        <Text>
+          Looking for:{" "}
+          {Array.isArray(profile.relationship)
+            ? profile.relationship.join(", ")
+            : profile.relationship}
+        </Text>
         <Text>Has kids: {profile.has_kids ? "Yes" : "No"}</Text>
         <Text>Wants kids: {profile.wants_kids ? "Yes" : "No"}</Text>
         <Text>Religion: {profile.religion}</Text>

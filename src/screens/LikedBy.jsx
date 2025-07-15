@@ -197,7 +197,11 @@ export default function LikedBy() {
           age: u.age,
           location: { city: u.city, country: u.country },
           ethnicities: u.ethnicities,
-          relationshipType: u.relationship,
+          relationshipType: Array.isArray(u.relationship)
+          ? u.relationship
+          : u.relationship
+          ? [u.relationship]
+          : [],
           hasKids: u.has_kids,
           wantsKids: u.wants_kids,
           religion: u.religion,

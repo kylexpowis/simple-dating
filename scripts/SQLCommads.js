@@ -14,7 +14,7 @@
 //   gender       TEXT,
 //   bio          TEXT,
 //   ethnicities  TEXT[],
-//   relationship TEXT,
+//   relationship TEXT[],
 //   has_kids     BOOLEAN,
 //   wants_kids   TEXT,
 //   religion     TEXT,
