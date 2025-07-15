@@ -70,6 +70,8 @@ export default function SingleChatScreen() {
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [otherLikedMe, setOtherLikedMe] = useState(false);
+  const [mySentCount, setMySentCount] = useState(0);
   const flatListRef = useRef();
   const channelRef = useRef();
 
@@ -143,6 +145,16 @@ export default function SingleChatScreen() {
 
         setChatId(chatRecord.id);
 
+         // check if the other user already liked me
+         const { data: likeRow, error: likeErr } = await supabase
+         .from("likes")
+         .select("id")
+         .eq("liker_id", otherUser.id)
+         .eq("likee_id", meUser.id)
+         .maybeSingle();
+       if (likeErr) console.error("Like check error:", likeErr);
+       if (mounted) setOtherLikedMe(!!likeRow);
+
         // 4) load history
         const { data: history, error: histErr } = await supabase
           .from("messages")
@@ -153,6 +165,9 @@ export default function SingleChatScreen() {
 
         if (mounted) {
           setMessages(history);
+  // count messages I've sent so far
+  const count = history.filter((m) => m.sender_id === meUser.id).length;
+  setMySentCount(count);
 
           // ← IMMEDIATELY mark all incoming as read
           await supabase
@@ -205,6 +220,26 @@ export default function SingleChatScreen() {
   const handleSend = async () => {
     if (!newMessage.trim() || !me || !chatId || isSending) return;
 
+     // re-check if other user liked me back
+     if (!otherLikedMe) {
+      const { data: likeRow, error: likeErr } = await supabase
+        .from("likes")
+        .select("id")
+        .eq("liker_id", otherUser.id)
+        .eq("likee_id", me.id)
+        .maybeSingle();
+      if (likeErr) console.error("Like check error:", likeErr);
+      if (likeRow) {
+        setOtherLikedMe(true);
+      } else if (mySentCount >= 1) {
+        Alert.alert(
+          "Message limit reached",
+          "You can only send one message until they like you back."
+        );
+        return;
+      }
+    }
+
     const content = newMessage.trim();
     const tempId = Date.now().toString();
     const payload = {
@@ -229,9 +264,11 @@ export default function SingleChatScreen() {
       if (insertErr) throw insertErr;
 
       setMessages((prev) => [...prev.filter((m) => m.id !== tempId), inserted]);
+      setMySentCount((c) => c + 1);
     } catch (err) {
       console.error("Message send error:", err);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setMySentCount((c) => Math.max(0, c - 1));
       Alert.alert(
         "Message not sent",
         err.message || "Could not send message. Please try again."
@@ -296,12 +333,16 @@ export default function SingleChatScreen() {
             value={newMessage}
             onChangeText={setNewMessage}
             placeholder="Type a message…"
-            editable={!isSending}
+            editable={!isSending && (otherLikedMe || mySentCount === 0)}
           />
           <Button
             title="Send"
             onPress={handleSend}
-            disabled={isSending || !newMessage.trim()}
+            disabled={
+              isSending ||
+              !newMessage.trim() ||
+              (!otherLikedMe && mySentCount >= 1)
+            }
           />
         </View>
       </KeyboardAvoidingView>

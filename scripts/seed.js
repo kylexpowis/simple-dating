@@ -15,7 +15,7 @@ const DUMMY = [
     city: "London",
     country: "UK",
     ethnicities: ["Asian", "White"],
-    relationship: "Long-term",
+    relationship: ["Long-term"],
     has_kids: false,
     wants_kids: true,
     religion: "None",
