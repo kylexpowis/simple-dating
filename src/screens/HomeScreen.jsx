@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Text, View, Animated, PanResponder, FlatList } from "react-native";
+import { Text, View, Animated, PanResponder, FlatList, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
 import { supabase } from "../../Lib/supabase";
+import { TouchableOpacity } from 'react-native';
 
 /* ───── configurable feel ───────────────────────────────────────── */
 const SWIPE_THRESHOLD = 120; // px to trigger like / dislike
@@ -199,9 +200,50 @@ export default function HomeScreen({ navigation }) {
         )}
         renderItem={({ item }) => <SwipeableProfileCard user={item} />}
       />
+       <TouchableOpacity
+        style={styles.fab}
+        onPress={() => {
+          /* your FAB action here, e.g.
+             navigation.navigate('SomeScreen');
+          */
+        }}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  cardWrapper: {
+    // …your existing card styles
+  },
+  // ── FAB styles ──
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#6200ee',      // Material purple 500
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,                     // Android shadow
+    shadowColor: '#000',              // iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  fabIcon: {
+    fontSize: 32,
+    color: '#fff',
+    lineHeight: 32,
+  },
+  // …rest of your existing styles
+});
 
 // const DUMMY = [
 //   {
