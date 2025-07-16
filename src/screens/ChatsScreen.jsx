@@ -185,9 +185,10 @@ export default function ChatsScreen() {
       .order("sent_at", { ascending: false });
     if (msgErr) console.error("Error fetching messages:", msgErr);
 
-    // compute lastMessage + unreadCounts
+     // compute lastMessage + unreadCounts + whoSpoke
     const lastMsgByChat = {};
     const unreadCounts = {};
+    const msgStats = {};
     msgRows.forEach((m) => {
       if (!lastMsgByChat[m.chat_id]) {
         lastMsgByChat[m.chat_id] = {
@@ -198,6 +199,14 @@ export default function ChatsScreen() {
       if (m.sender_id !== _me.id && !m.is_read) {
         unreadCounts[m.chat_id] = (unreadCounts[m.chat_id] || 0) + 1;
       }
+      if (!msgStats[m.chat_id]) {
+        msgStats[m.chat_id] = { fromMe: false, fromOther: false };
+      }
+      if (m.sender_id === _me.id) {
+        msgStats[m.chat_id].fromMe = true;
+      } else {
+        msgStats[m.chat_id].fromOther = true;
+      }
     });
 
     // 7) assemble newChats
@@ -207,7 +216,12 @@ export default function ChatsScreen() {
       const mutual = myLikedIds.has(otherId) && theirLikedIds.has(otherId);
       const hasTalked = !!lastMsgByChat[c.id];
       const hasUnread = (unreadCounts[c.id] || 0) > 0;
+      const stats = msgStats[c.id] || { fromMe: false, fromOther: false };
 
+      // Skip if this is just a message request
+      const isRequest = stats.fromOther && !stats.fromMe && !myLikedIds.has(otherId);
+      if (isRequest) return;
+      
       // include chat if:
       // • it has unread messages
       // • OR there’s at least one message in it
