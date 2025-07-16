@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import HomeStackNavigator from "./HomeStackNavigator";
 import LikedBy from "../screens/LikedBy";
 import ChatsScreen from "../screens/ChatsScreen";
-import ProfileScreen from "../screens/ProfileScreen";
+import ProfileStackNavigator from "./ProfileStackNavigator";
 
 const Tab = createBottomTabNavigator();
 
@@ -43,8 +43,9 @@ export default function TabNavigator() {
       />
       <Tab.Screen
         name="UserProfile"
-        component={ProfileScreen}
+        component={ProfileStackNavigator}
         options={{
+          headerShown: false,
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
