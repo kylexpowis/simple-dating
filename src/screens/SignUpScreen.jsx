@@ -1,11 +1,10 @@
-// src/screens/SignUpPage.jsx
+// src/screens/SignUpScreen.jsx
 import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Button,
   Alert,
   StyleSheet,
   ActivityIndicator,
@@ -46,13 +45,14 @@ export default function SignUpScreen() {
 
       // If Supabase returns a user object, the account was created successfully.
       // Depending on your Supabase settings, the user may need to confirm via email.
+      
       Alert.alert(
         "Sign Up Successful",
-        "Please check your email to confirm your account (if required), then log in."
+           "Please check your email to confirm your account (if required), then log in."
       );
 
-      // Navigate back to the Login screen
-      navigation.navigate("Login");
+  // Navigate back to the Login screen
+  navigation.navigate("Login");
     } catch (err) {
       console.log("SignUp error:", err.message);
       Alert.alert("Error Signing Up", err.message);
