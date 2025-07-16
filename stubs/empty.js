@@ -1,4 +1,3 @@
-// stubs/empty.js
 module.exports = {
   RealtimeClient: class {
     channel() {

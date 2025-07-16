@@ -1,4 +1,3 @@
-// src/Lib/ChatSocket.js
 import { CHAT_SERVER_URL } from "@env";
 
 /**
@@ -32,7 +31,7 @@ export function createChatSocket({
   let isReady = false;
   const sendQueue = [];
 
-  // Monkey-patch send(): buffer until open
+  // send(): buffer until open
   const rawSend = ws.send.bind(ws);
   ws.send = (data) => {
     if (isReady && ws.readyState === WebSocket.OPEN) {

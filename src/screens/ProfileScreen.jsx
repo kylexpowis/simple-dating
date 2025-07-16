@@ -1,5 +1,3 @@
-// src/screens/ProfileScreen.jsx
-
 import React, { useState, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -29,12 +27,10 @@ const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = width * 1.2;
 const BUCKET_NAME = "simple-dating-user-images";
 
-/** EDIT PROFILE SCREEN **/
 function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
 
-  // Form state
   const [images, setImages] = useState(Array(6).fill(null));
   const [firstName, setFirstName] = useState("");
   const [age, setAge] = useState("");
@@ -126,7 +122,7 @@ function EditProfileScreen() {
   useEffect(() => {
     (async () => {
       try {
-        // 1) Get current user
+        // Get current user
         const {
           data: { user },
           error: userErr,
@@ -136,7 +132,7 @@ function EditProfileScreen() {
           return;
         }
 
-        // 2) Fetch user row
+        // Fetch user row
         const { data: usr, error: usrErr } = await supabase
           .from("users")
           .select("*")
@@ -144,7 +140,7 @@ function EditProfileScreen() {
           .maybeSingle();
         if (usrErr) throw usrErr;
 
-        // 3) Fetch user_images in ascending order (oldest first)
+        // Fetch user_images in ascending order (oldest first)
         const { data: imgs, error: imgErr } = await supabase
           .from("user_images")
           .select("url")
@@ -168,7 +164,7 @@ function EditProfileScreen() {
         setWeed(usr.weed || "");
         setDrugs(usr.drugs || "");
 
-        // 6 image slots: use existing URLs, then null placeholders
+        // image slots: use existing URLs, then null placeholders
         const existing = imgs.map((r) => r.url);
         const slots = Array(6)
           .fill(null)
@@ -186,14 +182,14 @@ function EditProfileScreen() {
   // Original add-new-photo flow
   const pickAndSaveImage = async (idx) => {
     try {
-      // 1) Get current authenticated user
+      // Get current authenticated user
       const {
         data: { user },
         error: userErr,
       } = await supabase.auth.getUser();
       if (userErr || !user) throw userErr || new Error("No user");
 
-      // 2) Launch image library, requesting base64 data
+      // Launch image library, requesting base64 data
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.7,
@@ -201,14 +197,14 @@ function EditProfileScreen() {
       });
       if (res.canceled) return; // user aborted
 
-      // 3) Grab the first asset and its base64 string
+      // Grab the first asset and its base64 string
       const asset = res.assets[0];
       const { uri: localUri, base64: b64String, fileName } = asset;
       if (!b64String) {
         throw new Error("No base64 data returned from picker");
       }
 
-      // 4) Determine MIME type by file extension (png, gif, jpg, etc.)
+      // Determine MIME type by file extension (png, gif, jpg, etc.)
       let lower = (fileName || localUri).toLowerCase();
       let isPng = lower.endsWith(".png");
       let isGif = lower.endsWith(".gif");
@@ -224,7 +220,7 @@ function EditProfileScreen() {
         mimeType = "image/jpeg";
       }
 
-      // 5) Decode the base64 string into an ArrayBuffer
+      // Decode the base64 string into an ArrayBuffer
       const arrayBuffer = base64ToArrayBuffer(b64String);
       console.log(
         "📦 ArrayBuffer byteLength:",
@@ -236,10 +232,10 @@ function EditProfileScreen() {
         throw new Error("Decoded ArrayBuffer is 0 bytes!");
       }
 
-      // 6) Build a unique file path in your Supabase bucket
+      // Build a unique file path in your Supabase bucket
       const filePath = `${user.id}/${Date.now()}.${extension}`;
 
-      // 7) Upload the raw ArrayBuffer to Supabase Storage
+      // Upload the raw ArrayBuffer to Supabase Storage
       const { error: upErr } = await supabase.storage
         .from(BUCKET_NAME)
         .upload(filePath, arrayBuffer, {
@@ -247,18 +243,18 @@ function EditProfileScreen() {
         });
       if (upErr) throw upErr;
 
-      // 8) Get the public URL of the uploaded image
+      // Get the public URL of the uploaded image
       const {
         data: { publicUrl },
       } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
 
-      // 9) Insert the new record into your `user_images` table
+      // Insert the new record into your `user_images` table
       const { error: dbErr } = await supabase
         .from("user_images")
         .insert([{ user_id: user.id, url: publicUrl }]);
       if (dbErr) throw dbErr;
 
-      // 10) Update local state so the UI reflects the new image immediately
+      // Update local state so the UI reflects the new image immediately
       const copy = [...images];
       copy[idx] = publicUrl;
       setImages(copy);
@@ -268,7 +264,7 @@ function EditProfileScreen() {
     }
   };
 
-  // Delete photo logic (now also removes from Storage)
+  // Delete photo logic
   const removeImage = async (idx) => {
     try {
       const {
@@ -280,7 +276,7 @@ function EditProfileScreen() {
       const urlToRemove = images[idx];
       if (!urlToRemove) return;
 
-      // 1) Delete from user_images table
+      // Delete from user_images table
       const { error: delErr } = await supabase
         .from("user_images")
         .delete()
@@ -288,9 +284,7 @@ function EditProfileScreen() {
         .eq("url", urlToRemove);
       if (delErr) throw delErr;
 
-      // 2) Delete actual file from Storage
-      // Derive filePath from public URL:
-      // public URL format: https://<project>.supabase.co/storage/v1/object/public/<BUCKET_NAME>/<filePath>
+      // Delete actual file from Storage
       const parts = urlToRemove.split(`/${BUCKET_NAME}/`);
       if (parts.length > 1) {
         const filePath = parts[1];
@@ -300,7 +294,7 @@ function EditProfileScreen() {
         if (storageErr) console.error("Storage remove error:", storageErr);
       }
 
-      // 3) Update local state
+      // Update local state
       const copy = [...images];
       copy[idx] = null;
       setImages(copy);
@@ -310,17 +304,17 @@ function EditProfileScreen() {
     }
   };
 
-  // New: single-flow replace logic (upload new first, then delete old)
+  // single-flow replace logic (upload new first, then delete old)
   const replaceFlow = async (idx) => {
     try {
-      // 1) Get current authenticated user
+      // Get current authenticated user
       const {
         data: { user },
         error: userErr,
       } = await supabase.auth.getUser();
       if (userErr || !user) throw userErr || new Error("No user");
 
-      // 2) Launch image library, requesting base64 data
+      // Launch image library, requesting base64 data
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.7,
@@ -328,12 +322,12 @@ function EditProfileScreen() {
       });
       if (res.canceled) return; // user canceled → do nothing
 
-      // 3) Got a new image → upload it first
+      // Got a new image → upload it first
       const asset = res.assets[0];
       const { uri: localUri, base64: b64String, fileName } = asset;
       if (!b64String) throw new Error("No base64 data returned from picker");
 
-      // 4) Determine MIME type by file extension
+      // Determine MIME type by file extension
       let lower = (fileName || localUri).toLowerCase();
       let isPng = lower.endsWith(".png");
       let isGif = lower.endsWith(".gif");
@@ -349,7 +343,7 @@ function EditProfileScreen() {
         mimeType = "image/jpeg";
       }
 
-      // 5) Decode & upload new image
+      // Decode & upload new image
       const arrayBuffer = base64ToArrayBuffer(b64String);
       if (arrayBuffer.byteLength === 0)
         throw new Error("Decoded ArrayBuffer is 0 bytes!");
@@ -362,13 +356,13 @@ function EditProfileScreen() {
         data: { publicUrl: newUrl },
       } = supabase.storage.from(BUCKET_NAME).getPublicUrl(newFilePath);
 
-      // 6) Insert new record into user_images
+      // Insert new record into user_images
       const { error: dbErr } = await supabase
         .from("user_images")
         .insert([{ user_id: user.id, url: newUrl }]);
       if (dbErr) throw dbErr;
 
-      // 7) Remove old record and its file
+      // Remove old record and its file
       const oldUrl = images[idx];
       if (oldUrl) {
         // Delete old row
@@ -389,7 +383,7 @@ function EditProfileScreen() {
         }
       }
 
-      // 8) Update local state to show new image
+      // Update local state to show new image
       const copy = [...images];
       copy[idx] = newUrl;
       setImages(copy);
@@ -677,7 +671,6 @@ function EditProfileScreen() {
         </View>
       </Modal>
 
-      {/* Wants kids */}
       <Text style={styles.section}>Wants kids</Text>
       <TouchableOpacity
         style={styles.input}
@@ -725,8 +718,6 @@ function EditProfileScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Religion */}
       <Text style={styles.section}>Religion</Text>
       <TouchableOpacity
         style={styles.input}
@@ -972,7 +963,6 @@ function EditProfileScreen() {
   );
 }
 
-/** PREVIEW PROFILE SCREEN **/
 function PreviewProfileScreen() {
   const [images, setImages] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -983,14 +973,14 @@ function PreviewProfileScreen() {
   useEffect(() => {
     (async () => {
       try {
-        // 1) Get current user from Supabase Auth
+        // Get current user from Supabase Auth
         const {
           data: { user },
           error: userErr,
         } = await supabase.auth.getUser();
         if (userErr || !user) throw userErr || new Error("No user");
 
-        // 2) Attempt to fetch existing row in `public.users`
+        // Attempt to fetch existing row in `public.users`
         let { data: usr, error: usrErr } = await supabase
           .from("users")
           .select("*")
@@ -998,7 +988,7 @@ function PreviewProfileScreen() {
           .maybeSingle();
         if (usrErr) throw usrErr;
 
-        // 3) If no row exists, insert/upsert a "blank" profile row
+        // If no row exists, insert/upsert a "blank" profile row
         if (!usr) {
           const blankProfile = {
             id: user.id,
@@ -1032,9 +1022,8 @@ function PreviewProfileScreen() {
           usr = newUsr;
         }
 
-        // 4) Fetch all user_images for this user (may be empty initially)
-        //    **We explicitly order by `uploaded_at` ascending so that
-        //     our first‐uploaded image is shown first in the carousel.**
+        // Fetch all user_images for this user (may be empty initially)
+
         const { data: imgs, error: imgErr } = await supabase
           .from("user_images")
           .select("url")
@@ -1042,7 +1031,7 @@ function PreviewProfileScreen() {
           .order("uploaded_at", { ascending: true });
         if (imgErr) throw imgErr;
 
-        // 5) Set local state now that we have a guaranteed `profile` object
+        // Set local state now that we have a guaranteed `profile` object
         setProfile(usr);
         setImages(imgs.map((r) => r.url));
       } catch (e) {

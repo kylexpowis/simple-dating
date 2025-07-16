@@ -1,4 +1,3 @@
-// src/components/MsgReqCircleCard.jsx
 import React from "react";
 import { TouchableOpacity, Image, Text, StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
@@ -12,7 +11,7 @@ export default function MsgReqCircleCard({ firstName, photoUrl, onPress }) {
         ) : (
           <View style={[styles.avatar, styles.placeholder]} />
         )}
-        {/* Blur overlay on avatar only */}
+        {/* Blur overlay on avatar */}
         <BlurView
           intensity={10}
           style={styles.blurOverlay}

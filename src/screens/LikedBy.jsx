@@ -14,7 +14,7 @@ import LikedByCard from "../../components/LikedByCard";
 import MsgReqCircleCard from "../../components/MsgReqCircleCard";
 
 const { width } = Dimensions.get("window");
-// keep your existing CARD_WIDTH / CARD_HEIGHT definitions in case they're used downstream
+// keep existing CARD_WIDTH / CARD_HEIGHT in case they're used downstream
 const CARD_WIDTH = (width - 48) / 2;
 const CARD_HEIGHT = CARD_WIDTH * 1.2;
 
@@ -41,7 +41,7 @@ export default function LikedBy() {
         }
         const me = session.user;
 
-        // ─── First: figure out who I've liked (to filter them out) ───
+        // figure out who I've liked (to filter them out)
         const { data: myLikesRows = [], error: myLikesErr } = await supabase
           .from("likes")
           .select("likee_id")
@@ -51,7 +51,7 @@ export default function LikedBy() {
         }
         const myLikedIds = new Set(myLikesRows.map((r) => r.likee_id));
 
-        // ─── Next: load all matches for me (so we can find chats) ───
+        // load all matches for me (so we can find chats)
         const { data: matchRows = [], error: matchErr } = await supabase
           .from("matches")
           .select("id, user_a, user_b")
@@ -67,7 +67,7 @@ export default function LikedBy() {
         });
         const matchIds = matchRows.map((m) => m.id);
 
-        // ─── Next: load all chats for those matches ───
+        // load all chats for those matches
         const { data: chatRows = [], error: chatErr } = await supabase
           .from("chats")
           .select("id, match_id")
@@ -83,7 +83,7 @@ export default function LikedBy() {
         });
         const chatIds = chatRows.map((c) => c.id);
 
-        // ─── Next: load all messages for those chats ───
+        // load all messages for those chats
         const { data: msgRows = [], error: msgErr } = await supabase
           .from("messages")
           .select("chat_id, sender_id")
@@ -105,7 +105,6 @@ export default function LikedBy() {
           }
         });
 
-        // assemble the set of requesters:
         // they spoke to me, I never spoke back, and I haven't liked them
         const reqIds = new Set();
         Object.entries(chatStats).forEach(([chatId, stats]) => {
@@ -137,7 +136,7 @@ export default function LikedBy() {
         }
         if (isMounted) setMsgRequests(requests);
 
-        // ─── THEN fall back into your existing “liked-by” logic ───
+        // fall back into your existing “liked-by” logic
 
         // who liked me?
         const { data: likesRows = [], error: likesErr } = await supabase

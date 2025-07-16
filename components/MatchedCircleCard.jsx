@@ -1,4 +1,3 @@
-// src/components/MatchedCircleCard.jsx
 import React from "react";
 import { TouchableOpacity, Image, Text, StyleSheet, View } from "react-native";
 

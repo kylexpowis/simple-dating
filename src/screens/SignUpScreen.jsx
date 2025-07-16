@@ -1,4 +1,3 @@
-// src/screens/SignUpPage.jsx
 import React, { useState } from "react";
 import {
   View,
@@ -34,7 +33,7 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      // Supabase sign up. You can add additional user metadata here if needed.
+      // Supabase sign up.
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -44,14 +43,11 @@ export default function SignUpScreen() {
         throw error;
       }
 
-      // If Supabase returns a user object, the account was created successfully.
-      // Depending on your Supabase settings, the user may need to confirm via email.
       Alert.alert(
         "Sign Up Successful",
         "Please check your email to confirm your account (if required), then log in."
       );
 
-      // Navigate back to the Login screen
       navigation.navigate("Login");
     } catch (err) {
       console.log("SignUp error:", err.message);

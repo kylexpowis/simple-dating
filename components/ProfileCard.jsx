@@ -1,14 +1,6 @@
 import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 
-/**
- * Props:
- *  - firstName: string
- *  - age: number
- *  - location: { city: string, country: string }
- *  - photoUrl: string
- *  - onPress: () => void
- */
 export default function ProfileCard({
   firstName,
   age,

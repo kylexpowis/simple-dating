@@ -1,5 +1,3 @@
-// src/screens/OtherUserProfile.jsx
-
 import React, { useRef, useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -100,7 +98,7 @@ export default function OtherUserProfile() {
     };
   }, [user.id, user.photoUrl]);
 
-  // Like handler
+  // Like
   const handleLike = async () => {
     if (!currentUser) return;
     try {
@@ -114,7 +112,7 @@ export default function OtherUserProfile() {
     }
   };
 
-  // Dislike handler
+  // Dislike 
   const handleDislike = async () => {
     if (!currentUser) return;
     try {
@@ -128,7 +126,7 @@ export default function OtherUserProfile() {
     }
   };
 
-  // **Unmatch** handler
+  // Unmatch
   const handleUnmatch = async () => {
     if (!currentUser) return;
     try {
@@ -147,7 +145,7 @@ export default function OtherUserProfile() {
     }
   };
 
-  // Message handler
+  // Message
   const handleMessage = () => {
     const tabNav = navigation.getParent();
     if (tabNav) {
