@@ -603,11 +603,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
@@ -651,11 +647,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
@@ -699,11 +691,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
@@ -746,11 +734,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
@@ -794,11 +778,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
@@ -842,11 +822,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
@@ -890,11 +866,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
@@ -935,11 +907,7 @@ function EditProfileScreen() {
                     }}
                   >
                     <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
+                      name={selected ? "check-box" : "check-box-outline-blank"}
                       size={24}
                     />
                     <Text style={styles.optionText}>{opt}</Text>
