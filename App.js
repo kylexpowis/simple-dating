@@ -1,6 +1,9 @@
 // App.js
 import React, { useState, useEffect } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { supabase } from "./Lib/supabase";
 import AuthStack from "./src/navigation/AuthStack";
@@ -8,6 +11,7 @@ import TabNavigator from "./src/navigation/TabNavigator";
 import OtherUserProfile from "./src/screens/OtherUserProfile";
 
 const RootStack = createNativeStackNavigator();
+export const navigationRef = createNavigationContainerRef();
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -18,12 +22,23 @@ export default function App() {
       .then(({ data: { session } }) => setSession(session));
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => setSession(session));
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      if (
+        event === "SIGNED_IN" &&
+        (session?.user?.email_confirmed_at || session?.user?.confirmed_at)
+      ) {
+        navigationRef.current?.reset({
+          index: 0,
+          routes: [{ name: "MainTabs", params: { screen: "UserProfile" } }],
+        });
+      }
+    });
     return () => subscription.unsubscribe();
   }, []);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {session ? (
           <>
