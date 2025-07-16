@@ -1,4 +1,3 @@
-// metro.config.js
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 
@@ -28,8 +27,8 @@ module.exports = (async () => {
     https: stub,
     net: stub,
     crypto: stub,
-    tls: stub, // ← add this
-    url: stub, // ← and this
+    tls: stub,
+    url: stub,
     zlib: stub,
   };
 

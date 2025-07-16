@@ -1,27 +1,33 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Text, View, Animated, PanResponder, FlatList, StyleSheet } from "react-native";
+import {
+  Text,
+  View,
+  Animated,
+  PanResponder,
+  FlatList,
+  StyleSheet,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
 import { supabase } from "../../Lib/supabase";
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity } from "react-native";
 
-/* ───── configurable feel ───────────────────────────────────────── */
+// Tinder Swipe Settings
 const SWIPE_THRESHOLD = 120; // px to trigger like / dislike
 const MAX_ROTATION = 8; // deg tilt at threshold
 const MAX_SINK = 12; // px card “drops” while dragging
-/* ───────────────────────────────────────────────────────────────── */
 
 export default function HomeScreen({ navigation }) {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myId, setMyId] = useState(null);
 
-  /* ─────────────── 1. Load profiles (same logic) ───────────────── */
+  // Load Profiles
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        /* current user */
+        // curren user
         const {
           data: { session },
           error: sessionErr,
@@ -30,7 +36,7 @@ export default function HomeScreen({ navigation }) {
         const me = session?.user?.id;
         setMyId(me);
 
-        /* likes / dislikes already made */
+        // likes / dislikes already made
         const [{ data: likedRows = [] }, { data: dislikedRows = [] }] =
           await Promise.all([
             supabase.from("likes").select("likee_id").eq("liker_id", me),
@@ -43,7 +49,7 @@ export default function HomeScreen({ navigation }) {
         const likedIds = new Set(likedRows.map((r) => r.likee_id));
         const dislikedIds = new Set(dislikedRows.map((r) => r.dislikee_id));
 
-        /* all users + first image */
+        // all users and first image
         const { data, error } = await supabase.from("users").select(`
           id, first_name, age, city, country, ethnicities, relationship,
           has_kids, wants_kids, religion, alcohol, cigarettes, weed, drugs, bio,
@@ -51,7 +57,7 @@ export default function HomeScreen({ navigation }) {
         `);
         if (error) throw error;
 
-        /* filter & shape for <ProfileCard> */
+        // filter for profile card
         const formatted = data
           .filter(
             (u) => u.id !== me && !likedIds.has(u.id) && !dislikedIds.has(u.id)
@@ -83,10 +89,10 @@ export default function HomeScreen({ navigation }) {
     })();
   }, []);
 
-  /* ───────────── 2. Write like / dislike rows ─────────────────── */
+  // like and dislike functions
   const handleLike = useCallback(
     async (likeeId) => {
-      setProfiles((p) => p.filter((u) => u.id !== likeeId)); // optimistic
+      setProfiles((p) => p.filter((u) => u.id !== likeeId));
       try {
         await supabase
           .from("likes")
@@ -112,7 +118,7 @@ export default function HomeScreen({ navigation }) {
     [myId]
   );
 
-  /* ───────── 3. One swipe-enabled card component ──────────────── */
+  // swipeable profile card component
   function SwipeableProfileCard({ user }) {
     const translateX = useRef(new Animated.Value(0)).current;
 
@@ -130,7 +136,6 @@ export default function HomeScreen({ navigation }) {
 
     const pan = useRef(
       PanResponder.create({
-        /* don’t steal taps — only start on noticeable horizontal drag */
         onMoveShouldSetPanResponder: (_, g) =>
           Math.abs(g.dx) > Math.abs(g.dy) && Math.abs(g.dx) > 5,
         onPanResponderMove: Animated.event([null, { dx: translateX }], {
@@ -175,7 +180,6 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
-  /* ───────────── 4. Render ─────────────────────────────────────── */
   if (loading) {
     return (
       <SafeAreaView
@@ -200,12 +204,11 @@ export default function HomeScreen({ navigation }) {
         )}
         renderItem={({ item }) => <SwipeableProfileCard user={item} />}
       />
-       <TouchableOpacity
+      <TouchableOpacity
         style={styles.fab}
         onPress={() => {
-          /* your FAB action here, e.g.
-             navigation.navigate('SomeScreen');
-          */
+          /* logic for reverse like/dislike;
+           */
         }}
       >
         <Text style={styles.fabIcon}>+</Text>
@@ -215,120 +218,28 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  cardWrapper: {
-    // …your existing card styles
-  },
-  // ── FAB styles ──
+  container: { flex: 1, backgroundColor: "#fff" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  cardWrapper: {},
   fab: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 24,
     right: 24,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#6200ee',      // Material purple 500
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,                     // Android shadow
-    shadowColor: '#000',              // iOS shadow
+    backgroundColor: "#6200ee",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 6, // Android shadow
+    shadowColor: "#000", // iOS shadow
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
   fabIcon: {
     fontSize: 32,
-    color: '#fff',
+    color: "#fff",
     lineHeight: 32,
   },
-  // …rest of your existing styles
 });
-
-// const DUMMY = [
-//   {
-//     id: "1",
-//     firstName: "Alice",
-//     age: 27,
-//     location: { city: "London", country: "UK" },
-//     ethnicities: ["Asian", "White"],
-//     relationshipType: "Long-term",
-//     hasKids: false,
-//     wantsKids: true,
-//     religion: "None",
-//     alcohol: "Socially",
-//     cigarettes: "Never",
-//     weed: "Often",
-//     drugs: "Never",
-//     photoUrl:
-//       "https://img.buzzfeed.com/buzzfeed-static/static/2019-10/21/13/asset/bca59df568fc/sub-buzz-4034-1571664623-1.jpg",
-//   },
-//   {
-//     id: "2",
-//     firstName: "Beth",
-//     age: 30,
-//     location: { city: "Manchester", country: "UK" },
-//     ethnicities: ["Black"],
-//     relationshipType: "Long-term",
-//     hasKids: true,
-//     wantsKids: false,
-//     religion: "Christian",
-//     alcohol: "Never",
-//     cigarettes: "Socially",
-//     weed: "Never",
-//     drugs: "Never",
-//     photoUrl:
-//       "https://i.redd.it/how-do-i-achieve-the-ig-baddie-aesthetic-pls-drop-your-best-v0-8pjv85ei5hya1.jpg?width=1170&format=pjpg&auto=webp&s=65f4401350e38bd73a294defbf8e86893dd93c28",
-//   },
-//   {
-//     id: "3",
-//     firstName: "Chloe",
-//     age: 24,
-//     location: { city: "Birmingham", country: "UK" },
-//     ethnicities: ["Hispanic"],
-//     relationshipType: "Friends",
-//     hasKids: false,
-//     wantsKids: true,
-//     religion: "Buddhist",
-//     alcohol: "Never",
-//     cigarettes: "Never",
-//     weed: "Socially",
-//     drugs: "Never",
-//     photoUrl:
-//       "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg",
-//   },
-//   {
-//     id: "4",
-//     firstName: "Diana",
-//     age: 35,
-//     location: { city: "Leeds", country: "UK" },
-//     ethnicities: ["White"],
-//     relationshipType: "Long-term",
-//     hasKids: true,
-//     wantsKids: true,
-//     religion: "None",
-//     alcohol: "Socially",
-//     cigarettes: "Often",
-//     weed: "Never",
-//     drugs: "Never",
-//     photoUrl:
-//       "https://cdn.britannica.com/67/194367-050-908BD6E8/Diana-princess-Wales-1989.jpg",
-//   },
-//   {
-//     id: "5",
-//     firstName: "Emma",
-//     age: 29,
-//     location: { city: "Glasgow", country: "UK" },
-//     ethnicities: ["Mixed"],
-//     relationshipType: "Long-term",
-//     hasKids: false,
-//     wantsKids: false,
-//     religion: "None",
-//     alcohol: "Socially",
-//     cigarettes: "Never",
-//     weed: "Often",
-//     drugs: "Never",
-//     photoUrl:
-//       "https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg",
-//   },
-// ];

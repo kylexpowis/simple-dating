@@ -6,7 +6,7 @@ export default function UndoLastAction({
   onPress,
   style,
   iconColor = "#000",
-  backgroundColor = "#555",
+  backgroundColor = "#555", // Why are styles in here? Change styling.
 }) {
   return (
     <TouchableOpacity

@@ -1,4 +1,4 @@
-// File: scripts/seed.js
+// This seed file is to push dummy data only.
 require("dotenv").config();
 const { createClient } = require("@supabase/supabase-js");
 

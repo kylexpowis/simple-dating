@@ -1,4 +1,3 @@
-// src/screens/LoginScreen.jsx
 import React, { useState } from "react";
 import { View, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { supabase } from "../../Lib/supabase";
@@ -50,25 +49,26 @@ export default function LoginScreen() {
         onChangeText={setPassword}
       />
       <View style={styles.buttonContainer}>
-        <Button title={loading ? "Signing In..." : "Sign In"} onPress={signIn} disabled={loading} />
+        <Button
+          title={loading ? "Signing In..." : "Sign In"}
+          onPress={signIn}
+          disabled={loading}
+        />
       </View>
 
       <View style={styles.signUpContainer}>
-        <Button
-          title="Sign Up"
-          onPress={() => navigation.navigate("SignUp")}
-        />
+        <Button title="Sign Up" onPress={() => navigation.navigate("SignUp")} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    justifyContent: "center", 
-    padding: 16, 
-    backgroundColor: "#fff" 
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 16,
+    backgroundColor: "#fff",
   },
   input: {
     borderWidth: 1,

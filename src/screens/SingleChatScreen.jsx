@@ -27,7 +27,7 @@ export default function SingleChatScreen() {
     otherUser = { id: route.params.otherUserId };
   }
 
-  // — Header: avatar + name + back button —
+
   useEffect(() => {
     navigation.setOptions({
       headerTitleAlign: "center",
@@ -79,7 +79,7 @@ export default function SingleChatScreen() {
 
     (async () => {
       try {
-        // 1) session
+        // session
         const {
           data: { session },
           error: sessErr,
@@ -91,7 +91,7 @@ export default function SingleChatScreen() {
         if (!mounted) return;
         setMe(meUser);
 
-        // 2) match lookup/creation
+        // match lookup/creation
         const { data: existingMatch, error: matchErr } = await supabase
           .from("matches")
           .select("id")
@@ -120,7 +120,7 @@ export default function SingleChatScreen() {
         }
         if (!mounted) return;
 
-        // 3) chat lookup/creation
+        // chat lookup/creation
         const matchId = matchRecord.id;
         const { data: existingChat, error: chatErr } = await supabase
           .from("chats")
@@ -143,7 +143,7 @@ export default function SingleChatScreen() {
 
         setChatId(chatRecord.id);
 
-        // 4) load history
+        // load history
         const { data: history, error: histErr } = await supabase
           .from("messages")
           .select("*")
@@ -154,7 +154,7 @@ export default function SingleChatScreen() {
         if (mounted) {
           setMessages(history);
 
-          // ← IMMEDIATELY mark all incoming as read
+          // ←  mark all incoming as read   ????
           await supabase
             .from("messages")
             .update({ is_read: true })
@@ -167,7 +167,7 @@ export default function SingleChatScreen() {
           );
         }
 
-        // 5) subscribe to new messages
+        // subscribe to new messages
         channelRef.current = supabase
           .channel(`chat_messages_${chatRecord.id}`)
           .on(
@@ -201,7 +201,7 @@ export default function SingleChatScreen() {
     };
   }, [otherUser?.id]);
 
-  // 6) send message
+  // send message
   const handleSend = async () => {
     if (!newMessage.trim() || !me || !chatId || isSending) return;
 
@@ -215,7 +215,6 @@ export default function SingleChatScreen() {
       sent_at: new Date().toISOString(),
     };
 
-    // Optimistic UI
     setMessages((prev) => [...prev, payload]);
     setNewMessage("");
     setIsSending(true);
