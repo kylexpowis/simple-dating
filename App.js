@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { supabase } from "./Lib/supabase";
 import AuthStack from "./src/navigation/AuthStack";
 import TabNavigator from "./src/navigation/TabNavigator";
-import OtherUserProfile from "./src/screens/OtherUserProfile";
 
 const RootStack = createNativeStackNavigator();
 
@@ -25,14 +24,7 @@ export default function App() {
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {session ? (
-          <>
-            <RootStack.Screen name="MainTabs" component={TabNavigator} />
-            <RootStack.Screen
-              name="OtherUserProfile"
-              component={OtherUserProfile}
-              options={{ headerShown: true, title: "Profile" }}
-            />
-          </>
+          <RootStack.Screen name="MainTabs" component={TabNavigator} />
         ) : (
           <RootStack.Screen name="Auth" component={AuthStack} />
         )}
