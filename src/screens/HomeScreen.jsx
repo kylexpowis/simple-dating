@@ -12,6 +12,7 @@ import ProfileCard from "../../components/ProfileCard";
 import { supabase } from "../../Lib/supabase";
 import { TouchableOpacity } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MaterialIcons } from "@expo/vector-icons";
 
 // Tinder Swipe Settings
 const SWIPE_THRESHOLD = 120; // px to trigger like / dislike
@@ -22,6 +23,7 @@ export default function HomeScreen({ navigation }) {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myId, setMyId] = useState(null);
+  const [lastAction, setLastAction] = useState(null); // { type: 'like' | 'dislike', user }
 
   const matchesPreferences = (user, prefs) => {
     if (prefs.ethnicities?.length) {
@@ -119,16 +121,17 @@ export default function HomeScreen({ navigation }) {
 
   // like and dislike functions
   const handleLike = useCallback(
-    async (likeeId) => {
-      setProfiles((p) => p.filter((u) => u.id !== likeeId));
+    async (user) => {
+      setProfiles((p) => p.filter((u) => u.id !== user.id));
+      setLastAction({ type: "like", user });
       try {
         await supabase
           .from("likes")
-          .insert({ liker_id: myId, likee_id: likeeId });
+          .insert({ liker_id: myId, likee_id: user.id });
         await supabase
           .from("message_requests")
           .update({ accepted: true, accepted_at: new Date().toISOString() })
-          .eq("sender_id", likeeId)
+          .eq("sender_id", user.id)
           .eq("receiver_id", myId);
       } catch (e) {
         console.error("Error saving like:", e);
@@ -138,12 +141,13 @@ export default function HomeScreen({ navigation }) {
   );
 
   const handleDislike = useCallback(
-    async (dislikeeId) => {
-      setProfiles((p) => p.filter((u) => u.id !== dislikeeId));
+    async (user) => {
+      setProfiles((p) => p.filter((u) => u.id !== user.id));
+      setLastAction({ type: "dislike", user });
       try {
         await supabase
           .from("dislikes")
-          .insert({ disliker_id: myId, dislikee_id: dislikeeId });
+          .insert({ disliker_id: myId, dislikee_id: user.id });
       } catch (e) {
         console.error("Error saving dislike:", e);
       }
@@ -151,6 +155,35 @@ export default function HomeScreen({ navigation }) {
     [myId]
   );
 
+  const handleUndo = useCallback(async () => {
+    if (!lastAction) return;
+    const { type, user } = lastAction;
+    setProfiles((p) => [user, ...p]);
+    try {
+      if (type === "like") {
+        await supabase
+          .from("likes")
+          .delete()
+          .eq("liker_id", myId)
+          .eq("likee_id", user.id);
+        await supabase
+          .from("message_requests")
+          .update({ accepted: false, accepted_at: null })
+          .eq("sender_id", user.id)
+          .eq("receiver_id", myId);
+      } else if (type === "dislike") {
+        await supabase
+          .from("dislikes")
+          .delete()
+          .eq("disliker_id", myId)
+          .eq("dislikee_id", user.id);
+      }
+    } catch (e) {
+      console.error("Error reversing action:", e);
+    } finally {
+      setLastAction(null);
+    }
+  }, [lastAction, myId]);
   // swipeable profile card component
   function SwipeableProfileCard({ user }) {
     const translateX = useRef(new Animated.Value(0)).current;
@@ -180,13 +213,13 @@ export default function HomeScreen({ navigation }) {
               toValue: 500,
               duration: 200,
               useNativeDriver: true,
-            }).start(() => handleLike(user.id));
+            }).start(() => handleLike(user));
           } else if (g.dx < -SWIPE_THRESHOLD) {
             Animated.timing(translateX, {
               toValue: -500,
               duration: 200,
               useNativeDriver: true,
-            }).start(() => handleDislike(user.id));
+            }).start(() => handleDislike(user));
           } else {
             Animated.spring(translateX, {
               toValue: 0,
@@ -237,14 +270,8 @@ export default function HomeScreen({ navigation }) {
         )}
         renderItem={({ item }) => <SwipeableProfileCard user={item} />}
       />
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => {
-          /* logic for reverse like/dislike;
-           */
-        }}
-      >
-        <Text style={styles.fabIcon}>+</Text>
+      <TouchableOpacity style={styles.fab} onPress={handleUndo}>
+        <MaterialIcons name="undo" size={32} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -269,10 +296,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-  },
-  fabIcon: {
-    fontSize: 32,
-    color: "#fff",
-    lineHeight: 32,
   },
 });
