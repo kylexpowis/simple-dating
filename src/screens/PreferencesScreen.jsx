@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   Modal,
   Button,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function PreferencesScreen() {
   const [ethnicities, setEthnicities] = useState([]);
@@ -84,6 +86,30 @@ export default function PreferencesScreen() {
   const [weedModalVisible, setWeedModalVisible] = useState(false);
   const [drugsModalVisible, setDrugsModalVisible] = useState(false);
 
+  // Load saved preferences on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem("searchPrefs");
+        if (saved) {
+          const prefs = JSON.parse(saved);
+          setEthnicities(prefs.ethnicities || []);
+          setDistance(prefs.distance || "");
+          setHasKids(prefs.hasKids || "");
+          setLookingFor(prefs.lookingFor || []);
+          setWantsKids(prefs.wantsKids || "");
+          setReligion(prefs.religion || "");
+          setAlcohol(prefs.alcohol || "");
+          setCigarettes(prefs.cigarettes || "");
+          setWeed(prefs.weed || "");
+          setDrugs(prefs.drugs || "");
+        }
+      } catch (e) {
+        console.error("Error loading preferences", e);
+      }
+    })();
+  }, []);
+
   const toggleEthnicity = (opt) => {
     setEthnicities((curr) =>
       curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
@@ -94,6 +120,28 @@ export default function PreferencesScreen() {
     setLookingFor((curr) =>
       curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
     );
+  };
+
+  const handleSave = async () => {
+    const prefs = {
+      ethnicities,
+      distance,
+      hasKids,
+      lookingFor,
+      wantsKids,
+      religion,
+      alcohol,
+      cigarettes,
+      weed,
+      drugs,
+    };
+    try {
+      await AsyncStorage.setItem("searchPrefs", JSON.stringify(prefs));
+      Alert.alert("Preferences Saved");
+    } catch (e) {
+      console.error("Error saving preferences", e);
+      Alert.alert("Error", "Could not save preferences");
+    }
   };
 
   return (
@@ -500,7 +548,7 @@ export default function PreferencesScreen() {
       </Modal>
 
       <View style={{ marginVertical: 20 }}>
-        <Button title="Save Preferences" onPress={() => {}} />
+        <Button title="Save Preferences" onPress={handleSave} />
       </View>
     </ScrollView>
   );

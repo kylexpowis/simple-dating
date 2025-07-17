@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "../../components/ProfileCard";
 import { supabase } from "../../Lib/supabase";
 import { TouchableOpacity } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Tinder Swipe Settings
 const SWIPE_THRESHOLD = 120; // px to trigger like / dislike
@@ -21,6 +22,27 @@ export default function HomeScreen({ navigation }) {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myId, setMyId] = useState(null);
+
+  const matchesPreferences = (user, prefs) => {
+    if (prefs.ethnicities?.length) {
+      const eth = user.ethnicities || [];
+      if (!eth.some((e) => prefs.ethnicities.includes(e))) return false;
+    }
+    if (prefs.lookingFor?.length) {
+      const rel = Array.isArray(user.relationship)
+        ? user.relationship
+        : [user.relationship];
+      if (!rel.some((r) => prefs.lookingFor.includes(r))) return false;
+    }
+    if (prefs.hasKids && user.has_kids !== prefs.hasKids) return false;
+    if (prefs.wantsKids && user.wants_kids !== prefs.wantsKids) return false;
+    if (prefs.religion && user.religion !== prefs.religion) return false;
+    if (prefs.alcohol && user.alcohol !== prefs.alcohol) return false;
+    if (prefs.cigarettes && user.cigarettes !== prefs.cigarettes) return false;
+    if (prefs.weed && user.weed !== prefs.weed) return false;
+    if (prefs.drugs && user.drugs !== prefs.drugs) return false;
+    return true;
+  };
 
   // Load Profiles
   useEffect(() => {
@@ -49,6 +71,9 @@ export default function HomeScreen({ navigation }) {
         const likedIds = new Set(likedRows.map((r) => r.likee_id));
         const dislikedIds = new Set(dislikedRows.map((r) => r.dislikee_id));
 
+        const prefStr = await AsyncStorage.getItem("searchPrefs");
+        const prefs = prefStr ? JSON.parse(prefStr) : null;
+
         // all users and first image
         const { data, error } = await supabase.from("users").select(`
           id, first_name, age, city, country, ethnicities, relationship,
@@ -58,27 +83,30 @@ export default function HomeScreen({ navigation }) {
         if (error) throw error;
 
         // filter for profile card
-        const formatted = data
-          .filter(
-            (u) => u.id !== me && !likedIds.has(u.id) && !dislikedIds.has(u.id)
-          )
-          .map((u) => ({
-            id: u.id,
-            firstName: u.first_name,
-            age: u.age,
-            location: { city: u.city, country: u.country },
-            ethnicities: u.ethnicities,
-            relationshipType: u.relationship,
-            hasKids: u.has_kids,
-            wantsKids: u.wants_kids,
-            religion: u.religion,
-            alcohol: u.alcohol,
-            cigarettes: u.cigarettes,
-            weed: u.weed,
-            drugs: u.drugs,
-            bio: u.bio,
-            photoUrl: u.user_images?.[0]?.url || null,
-          }));
+        let filtered = data.filter(
+          (u) => u.id !== me && !likedIds.has(u.id) && !dislikedIds.has(u.id)
+        );
+        if (prefs) {
+          filtered = filtered.filter((u) => matchesPreferences(u, prefs));
+        }
+
+        const formatted = filtered.map((u) => ({
+          id: u.id,
+          firstName: u.first_name,
+          age: u.age,
+          location: { city: u.city, country: u.country },
+          ethnicities: u.ethnicities,
+          relationshipType: u.relationship,
+          hasKids: u.has_kids,
+          wantsKids: u.wants_kids,
+          religion: u.religion,
+          alcohol: u.alcohol,
+          cigarettes: u.cigarettes,
+          weed: u.weed,
+          drugs: u.drugs,
+          bio: u.bio,
+          photoUrl: u.user_images?.[0]?.url || null,
+        }));
         setProfiles(formatted);
       } catch (err) {
         console.error("Error loading profiles:", err);
