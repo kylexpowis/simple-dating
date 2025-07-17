@@ -27,7 +27,6 @@ export default function SingleChatScreen() {
     otherUser = { id: route.params.otherUserId };
   }
 
-
   useEffect(() => {
     navigation.setOptions({
       headerTitleAlign: "center",
@@ -55,12 +54,13 @@ export default function SingleChatScreen() {
       ),
       headerLeft: () => (
         <TouchableOpacity
-          onPress={() => navigation.navigate("Chats")}
+          onPress={() => navigation.goBack()}
           style={{ marginLeft: 15 }}
         >
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
       ),
+      headerBackTitleVisible: false,
     });
   }, [navigation, otherUser?.firstName, otherUser?.photoUrl]);
 
