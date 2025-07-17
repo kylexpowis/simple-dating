@@ -72,6 +72,7 @@ export default function SingleChatScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isMatched, setIsMatched] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const [incomingRequest, setIncomingRequest] = useState(false);
   const flatListRef = useRef();
   const channelRef = useRef();
 
@@ -94,32 +95,46 @@ export default function SingleChatScreen() {
         setMe(meUser);
 
         // determine match status and existing message request
-        const [{ data: likeMe }, { data: likeThem }, { data: reqRow }] =
-          await Promise.all([
-            supabase
-              .from("likes")
-              .select("id")
-              .eq("liker_id", meUser.id)
-              .eq("likee_id", otherUser.id)
-              .maybeSingle(),
-            supabase
-              .from("likes")
-              .select("id")
-              .eq("liker_id", otherUser.id)
-              .eq("likee_id", meUser.id)
-              .maybeSingle(),
-            supabase
-              .from("message_requests")
-              .select("accepted")
-              .eq("sender_id", meUser.id)
-              .eq("receiver_id", otherUser.id)
-              .maybeSingle(),
-          ]);
+        const [
+          { data: likeMe },
+          { data: likeThem },
+          { data: outgoingReq },
+          { data: incomingReq },
+        ] = await Promise.all([
+          supabase
+            .from("likes")
+            .select("id")
+            .eq("liker_id", meUser.id)
+            .eq("likee_id", otherUser.id)
+            .maybeSingle(),
+          supabase
+            .from("likes")
+            .select("id")
+            .eq("liker_id", otherUser.id)
+            .eq("likee_id", meUser.id)
+            .maybeSingle(),
+          supabase
+            .from("message_requests")
+            .select("accepted")
+            .eq("sender_id", meUser.id)
+            .eq("receiver_id", otherUser.id)
+            .maybeSingle(),
+          supabase
+            .from("message_requests")
+            .select("accepted")
+            .eq("sender_id", otherUser.id)
+            .eq("receiver_id", meUser.id)
+            .maybeSingle(),
+        ]);
 
-        const matched = !!(likeMe && likeThem) || reqRow?.accepted;
+        const matched =
+          !!(likeMe && likeThem) ||
+          outgoingReq?.accepted ||
+          incomingReq?.accepted;
         if (mounted) {
           setIsMatched(matched);
-          setRequestSent(!!reqRow && !reqRow.accepted);
+          setRequestSent(!!outgoingReq && !outgoingReq.accepted);
+          setIncomingRequest(!!incomingReq && !incomingReq.accepted);
         }
         // match lookup/creation
         const { data: existingMatch, error: matchErr } = await supabase
@@ -277,7 +292,38 @@ export default function SingleChatScreen() {
       setIsSending(false);
     }
   };
+  const handleAcceptRequest = async () => {
+    if (!me) return;
+    try {
+      await supabase
+        .from("message_requests")
+        .update({ accepted: true, accepted_at: new Date().toISOString() })
+        .eq("sender_id", otherUser.id)
+        .eq("receiver_id", me.id);
+      setIncomingRequest(false);
+      setIsMatched(true);
+    } catch (err) {
+      Alert.alert("Could not accept request", err.message);
+    }
+  };
 
+  const handleIgnoreRequest = async () => {
+    if (!me) return;
+    try {
+      await supabase
+        .from("message_requests")
+        .delete()
+        .eq("sender_id", otherUser.id)
+        .eq("receiver_id", me.id);
+      await supabase
+        .from("dislikes")
+        .insert({ disliker_id: me.id, dislikee_id: otherUser.id });
+      setIncomingRequest(false);
+      navigation.goBack();
+    } catch (err) {
+      Alert.alert("Could not ignore request", err.message);
+    }
+  };
   if (error) {
     return (
       <View style={styles.center}>
@@ -327,7 +373,32 @@ export default function SingleChatScreen() {
           }
         />
 
-        {isMatched || !requestSent ? (
+        {isMatched ? (
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              value={newMessage}
+              onChangeText={setNewMessage}
+              placeholder="Type a message…"
+              editable={!isSending}
+            />
+            <Button
+              title="Send"
+              onPress={handleSend}
+              disabled={isSending || !newMessage.trim()}
+            />
+          </View>
+        ) : incomingRequest ? (
+          <View style={styles.requestBox}>
+            <Text style={styles.pendingText}>
+              {otherUser.firstName} wants to chat with you.
+            </Text>
+            <View style={styles.requestButtons}>
+              <Button title="Ignore" onPress={handleIgnoreRequest} />
+              <Button title="Accept" onPress={handleAcceptRequest} />
+            </View>
+          </View>
+        ) : !requestSent ? (
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
@@ -390,6 +461,16 @@ const styles = StyleSheet.create({
     padding: 12,
     borderTopWidth: 1,
     borderColor: "#ddd",
+  },
+  requestBox: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+  },
+  requestButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 8,
   },
   pendingText: { fontStyle: "italic", textAlign: "center", color: "#666" },
   headerTitleContainer: { alignItems: "center" },
