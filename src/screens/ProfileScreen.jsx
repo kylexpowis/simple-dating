@@ -19,7 +19,7 @@ import { createMaterialTopTabNavigator } from "@react-navigation/material-top-ta
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../Lib/supabase";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
 
 const Tab = createMaterialTopTabNavigator();
@@ -456,11 +456,9 @@ function EditProfileScreen() {
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (!error) {
-      navigation.getParent()?.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: "Login" }],
-        })
+      const rootNav = navigation.getParent()?.getParent();
+      rootNav?.dispatch(
+        CommonActions.reset({ index: 0, routes: [{ name: "Auth" }] })
       );
     }
   };
