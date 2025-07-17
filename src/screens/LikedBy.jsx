@@ -51,79 +51,27 @@ export default function LikedBy() {
         }
         const myLikedIds = new Set(myLikesRows.map((r) => r.likee_id));
 
-        // load all matches for me (so we can find chats)
-        const { data: matchRows = [], error: matchErr } = await supabase
-          .from("matches")
-          .select("id, user_a, user_b")
-          .or(`user_a.eq.${me.id},user_b.eq.${me.id}`);
-        if (matchErr) {
-          console.error("could not load matches:", matchErr);
+        // pending message requests for me
+        const { data: reqRows = [], error: reqErr } = await supabase
+          .from("message_requests")
+          .select("sender_id")
+          .eq("receiver_id", me.id)
+          .eq("accepted", false);
+        if (reqErr) {
+          console.error("could not load message requests:", reqErr);
         }
 
-        // map match → otherUserId
-        const otherByMatch = {};
-        matchRows.forEach((m) => {
-          otherByMatch[m.id] = m.user_a === me.id ? m.user_b : m.user_a;
-        });
-        const matchIds = matchRows.map((m) => m.id);
+        const reqIds = reqRows.map((r) => r.sender_id);
 
-        // load all chats for those matches
-        const { data: chatRows = [], error: chatErr } = await supabase
-          .from("chats")
-          .select("id, match_id")
-          .in("match_id", matchIds);
-        if (chatErr) {
-          console.error("could not load chats:", chatErr);
-        }
-
-        // map chat → otherUserId
-        const userByChat = {};
-        chatRows.forEach((c) => {
-          userByChat[c.id] = otherByMatch[c.match_id];
-        });
-        const chatIds = chatRows.map((c) => c.id);
-
-        // load all messages for those chats
-        const { data: msgRows = [], error: msgErr } = await supabase
-          .from("messages")
-          .select("chat_id, sender_id")
-          .in("chat_id", chatIds);
-        if (msgErr) {
-          console.error("could not load messages:", msgErr);
-        }
-
-        // determine for each chat whether other/user have spoken
-        const chatStats = {};
-        msgRows.forEach((m) => {
-          if (!chatStats[m.chat_id]) {
-            chatStats[m.chat_id] = { fromOther: false, fromMe: false };
-          }
-          if (m.sender_id === me.id) {
-            chatStats[m.chat_id].fromMe = true;
-          } else {
-            chatStats[m.chat_id].fromOther = true;
-          }
-        });
-
-        // they spoke to me, I never spoke back, and I haven't liked them
-        const reqIds = new Set();
-        Object.entries(chatStats).forEach(([chatId, stats]) => {
-          if (stats.fromOther && !stats.fromMe) {
-            const otherId = userByChat[chatId];
-            if (!myLikedIds.has(otherId)) {
-              reqIds.add(otherId);
-            }
-          }
-        });
         const reqArray = Array.from(reqIds);
 
         // fetch their profiles (name + avatar) for the strip
         let requests = [];
-        if (reqArray.length > 0) {
+        if (reqIds.length > 0) {
           const { data: usersReq = [], error: usersReqErr } = await supabase
             .from("users")
             .select("id, first_name, user_images ( url )")
-            .in("id", reqArray);
+            .in("id", reqIds);
           if (usersReqErr) {
             console.error("could not load requesters' profiles:", usersReqErr);
           } else {
