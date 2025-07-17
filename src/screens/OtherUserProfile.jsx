@@ -106,13 +106,18 @@ export default function OtherUserProfile() {
         liker_id: currentUser.id,
         likee_id: user.id,
       });
+      await supabase
+        .from("message_requests")
+        .update({ accepted: true, accepted_at: new Date().toISOString() })
+        .eq("sender_id", user.id)
+        .eq("receiver_id", currentUser.id);
       alert(`You liked ${user.firstName}!`);
     } catch {
       Alert.alert("Could not like user.");
     }
   };
 
-  // Dislike 
+  // Dislike
   const handleDislike = async () => {
     if (!currentUser) return;
     try {

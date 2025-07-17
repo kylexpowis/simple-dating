@@ -70,6 +70,8 @@ export default function SingleChatScreen() {
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [isMatched, setIsMatched] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
   const flatListRef = useRef();
   const channelRef = useRef();
 
@@ -91,6 +93,34 @@ export default function SingleChatScreen() {
         if (!mounted) return;
         setMe(meUser);
 
+        // determine match status and existing message request
+        const [{ data: likeMe }, { data: likeThem }, { data: reqRow }] =
+          await Promise.all([
+            supabase
+              .from("likes")
+              .select("id")
+              .eq("liker_id", meUser.id)
+              .eq("likee_id", otherUser.id)
+              .maybeSingle(),
+            supabase
+              .from("likes")
+              .select("id")
+              .eq("liker_id", otherUser.id)
+              .eq("likee_id", meUser.id)
+              .maybeSingle(),
+            supabase
+              .from("message_requests")
+              .select("accepted")
+              .eq("sender_id", meUser.id)
+              .eq("receiver_id", otherUser.id)
+              .maybeSingle(),
+          ]);
+
+        const matched = !!(likeMe && likeThem) || reqRow?.accepted;
+        if (mounted) {
+          setIsMatched(matched);
+          setRequestSent(!!reqRow && !reqRow.accepted);
+        }
         // match lookup/creation
         const { data: existingMatch, error: matchErr } = await supabase
           .from("matches")
@@ -204,6 +234,7 @@ export default function SingleChatScreen() {
   // send message
   const handleSend = async () => {
     if (!newMessage.trim() || !me || !chatId || isSending) return;
+    if (!isMatched && requestSent) return;
 
     const content = newMessage.trim();
     const tempId = Date.now().toString();
@@ -228,6 +259,13 @@ export default function SingleChatScreen() {
       if (insertErr) throw insertErr;
 
       setMessages((prev) => [...prev.filter((m) => m.id !== tempId), inserted]);
+      if (!isMatched && !requestSent) {
+        await supabase.from("message_requests").insert({
+          sender_id: me.id,
+          receiver_id: otherUser.id,
+        });
+        setRequestSent(true);
+      }
     } catch (err) {
       console.error("Message send error:", err);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -289,20 +327,28 @@ export default function SingleChatScreen() {
           }
         />
 
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            value={newMessage}
-            onChangeText={setNewMessage}
-            placeholder="Type a message…"
-            editable={!isSending}
-          />
-          <Button
-            title="Send"
-            onPress={handleSend}
-            disabled={isSending || !newMessage.trim()}
-          />
-        </View>
+        {isMatched || !requestSent ? (
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              value={newMessage}
+              onChangeText={setNewMessage}
+              placeholder="Type a message…"
+              editable={!isSending}
+            />
+            <Button
+              title="Send"
+              onPress={handleSend}
+              disabled={isSending || !newMessage.trim()}
+            />
+          </View>
+        ) : (
+          <View style={styles.pendingBox}>
+            <Text style={styles.pendingText}>
+              You can send another message once this user accepts your request.
+            </Text>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -340,6 +386,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
   },
+  pendingBox: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+  },
+  pendingText: { fontStyle: "italic", textAlign: "center", color: "#666" },
   headerTitleContainer: { alignItems: "center" },
   headerAvatar: { width: 40, height: 40, borderRadius: 20, marginBottom: 4 },
   headerTitleText: { fontSize: 16, fontWeight: "bold" },
