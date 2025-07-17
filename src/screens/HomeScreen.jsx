@@ -125,6 +125,11 @@ export default function HomeScreen({ navigation }) {
         await supabase
           .from("likes")
           .insert({ liker_id: myId, likee_id: likeeId });
+        await supabase
+          .from("message_requests")
+          .update({ accepted: true, accepted_at: new Date().toISOString() })
+          .eq("sender_id", likeeId)
+          .eq("receiver_id", myId);
       } catch (e) {
         console.error("Error saving like:", e);
       }
