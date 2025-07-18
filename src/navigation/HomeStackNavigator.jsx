@@ -1,5 +1,8 @@
 import React from "react";
-import { createStackNavigator } from "@react-navigation/stack";
+import {
+  createStackNavigator,
+  TransitionPresets,
+} from "@react-navigation/stack";
 import HomeScreen from "../screens/HomeScreen";
 import OtherUserProfile from "../screens/OtherUserProfile";
 import SingleChatScreen from "../screens/SingleChatScreen";
@@ -22,6 +25,7 @@ export default function HomeStackNavigator() {
           title: "",
           headerShown: true,
           headerBackTitleVisible: false,
+          ...TransitionPresets.ScaleFromCenterAndroid,
         }}
       />
 
