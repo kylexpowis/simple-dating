@@ -197,9 +197,8 @@ export default function LikedBy() {
                 firstName={u.firstName}
                 photoUrl={u.photoUrl}
                 onPress={() =>
-                  navigation.navigate("Home", {
-                    screen: "SingleChatScreen",
-                    params: { otherUser: u },
+                  navigation.navigate("SingleChatScreen", {
+                    otherUser: u,
                   })
                 }
               />
@@ -220,9 +219,8 @@ export default function LikedBy() {
           <LikedByCard
             {...item}
             onPress={() =>
-              navigation.navigate("Home", {
-                screen: "OtherUserProfile",
-                params: { user: item },
+              navigation.navigate("OtherUserProfile", {
+                user: item,
               })
             }
           />

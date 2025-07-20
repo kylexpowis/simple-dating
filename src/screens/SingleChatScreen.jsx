@@ -35,9 +35,9 @@ export default function SingleChatScreen() {
           {otherUser?.photoUrl && (
             <TouchableOpacity
               onPress={() =>
-                navigation.navigate("Home", {
-                  screen: "OtherUserProfile",
-                  params: { user: otherUser, hideSendMessage: true },
+                navigation.navigate("OtherUserProfile", {
+                  user: otherUser,
+                  hideSendMessage: true,
                 })
               }
             >

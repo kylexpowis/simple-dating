@@ -152,15 +152,7 @@ export default function OtherUserProfile() {
 
   // Message
   const handleMessage = () => {
-    const tabNav = navigation.getParent();
-    if (tabNav) {
-      tabNav.navigate("Home", {
-        screen: "SingleChatScreen",
-        params: { otherUser: user },
-      });
-    } else {
-      navigation.navigate("SingleChatScreen", { otherUser: user });
-    }
+    navigation.navigate("SingleChatScreen", { otherUser: user });
   };
 
   // Carousel controls
