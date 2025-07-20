@@ -27,7 +27,11 @@ const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = width * 1.2;
 const BUCKET_NAME = "simple-dating-user-images";
 
-function EditProfileScreen() {
+export function EditProfileScreen({
+  onComplete,
+  submitLabel = "Update Profile",
+  showLogout = true,
+} = {}) {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
 
@@ -445,6 +449,7 @@ function EditProfileScreen() {
       if (error) throw error;
 
       Alert.alert("Success", "Profile saved");
+      if (onComplete) onComplete();
     } catch (e) {
       console.error(e);
       Alert.alert("Error", "Could not save profile");
@@ -922,8 +927,8 @@ function EditProfileScreen() {
       </Modal>
 
       <View style={{ marginVertical: 20 }}>
-        <Button title="Update Profile" onPress={updateProfile} />
-        <Button title="Logout" onPress={handleLogout} />
+        <Button title={submitLabel} onPress={updateProfile} />
+        {showLogout && <Button title="Logout" onPress={handleLogout} />}
       </View>
     </ScrollView>
   );
