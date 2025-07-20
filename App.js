@@ -4,8 +4,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { supabase } from "./Lib/supabase";
 import AuthStack from "./src/navigation/AuthStack";
 import TabNavigator from "./src/navigation/TabNavigator";
-import CreateProfileScreen from "./src/screens/CreateProfileScreen";
-import { ActivityIndicator, View } from "react-native";
 
 const RootStack = createNativeStackNavigator();
 
