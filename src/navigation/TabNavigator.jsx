@@ -3,8 +3,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 
 import HomeStackNavigator from "./HomeStackNavigator";
-import LikedBy from "../screens/LikedBy";
-import ChatsScreen from "../screens/ChatsScreen";
+import LikedByStackNavigator from "./LikedByChatStackNavigator";
+import ChatsStackNavigator from "./ChatStackNavigation";
 import ProfileStackNavigator from "./ProfileStackNavigator";
 
 const Tab = createBottomTabNavigator();
@@ -24,8 +24,9 @@ export default function TabNavigator() {
       />
       <Tab.Screen
         name="LikedBy"
-        component={LikedBy}
+        component={LikedByStackNavigator}
         options={{
+          headerShown: false,
           title: "Liked By",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="heart-outline" size={size} color={color} />
@@ -34,7 +35,7 @@ export default function TabNavigator() {
       />
       <Tab.Screen
         name="Chats"
-        component={ChatsScreen}
+        component={ChatsStackNavigator}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-outline" size={size} color={color} />

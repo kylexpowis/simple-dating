@@ -278,9 +278,8 @@ export default function ChatsScreen() {
                 firstName={u.firstName}
                 photoUrl={u.photoUrl}
                 onPress={() =>
-                  navigation.navigate("Home", {
-                    screen: "OtherUserProfile",
-                    params: { user: u },
+                  navigation.navigate("OtherUserProfile", {
+                    user: u,
                   })
                 }
                 onLongPress={() => handleUnmatch(u.id)}
@@ -300,9 +299,8 @@ export default function ChatsScreen() {
             lastMessage={item.lastMessage}
             unreadCount={item.unreadCount}
             onPress={() =>
-              navigation.navigate("Home", {
-                screen: "SingleChatScreen",
-                params: { otherUser: item.user },
+              navigation.navigate("SingleChatScreen", {
+                otherUser: item.user,
               })
             }
           />
