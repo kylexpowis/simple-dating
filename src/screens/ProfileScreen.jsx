@@ -155,20 +155,20 @@ export function EditProfileScreen({
         if (imgErr) throw imgErr;
 
         // Initialize form state
-        setFirstName(usr?.first_name || "");
-        setAge(usr.age?.toString() || "");
-        setCity(usr.city || "");
-        setCountry(usr.country || "");
-        setBio(usr.bio || "");
-        setEthnicities(usr.ethnicities || []);
-        setRelationship(usr.relationship || "");
-        setHasKids(!!usr.has_kids);
-        setWantsKids(!!usr.wants_kids);
-        setReligion(usr.religion || "");
-        setAlcohol(usr.alcohol || "");
-        setCigarettes(usr.cigarettes || "");
-        setWeed(usr.weed || "");
-        setDrugs(usr.drugs || "");
+        setFirstName(usr?.first_name || " ");
+        setAge(usr?.age?.toString() || " ");
+        setCity(usr?.city || " ");
+        setCountry(usr?.country || " ");
+        setBio(usr?.bio || " ");
+        setEthnicities(usr?.ethnicities || []);
+        setRelationship(usr?.relationship || "");
+        setHasKids(!!usr?.has_kids);
+        setWantsKids(!!usr?.wants_kids);
+        setReligion(usr?.religion || "");
+        setAlcohol(usr?.alcohol || "");
+        setCigarettes(usr?.cigarettes || "");
+        setWeed(usr?.weed || "");
+        setDrugs(usr?.drugs || "");
 
         // image slots: use existing URLs, then null placeholders
         const existing = imgs.map((r) => r.url);
