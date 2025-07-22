@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@env";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SERVICE_ROLE_KEY } from "@env";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -15,4 +15,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 
   realtime: { enabled: true },
+});
+export const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  global: {
+    fetch: global.fetch,
+  },
 });

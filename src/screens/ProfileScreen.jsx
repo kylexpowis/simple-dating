@@ -18,7 +18,7 @@ import {
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { supabase } from "../../Lib/supabase";
+import { supabase, supabaseAdmin } from "../../Lib/supabase";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
 
@@ -50,6 +50,8 @@ export function EditProfileScreen({
   const [cigarettes, setCigarettes] = useState("");
   const [weed, setWeed] = useState("");
   const [drugs, setDrugs] = useState("");
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
 
   const ETHNICITY_OPTIONS = [
     "Black / African Descent",
@@ -465,6 +467,56 @@ export function EditProfileScreen({
       rootNav?.dispatch(
         CommonActions.reset({ index: 0, routes: [{ name: "Auth" }] })
       );
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm.trim() !== "I UNDERSTAND") {
+      Alert.alert("Error", "There was a mistake, please try again.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      if (userErr || !user) throw userErr || new Error("No user");
+
+      const { data: imgs } = await supabase
+        .from("user_images")
+        .select("url")
+        .eq("user_id", user.id);
+      if (imgs && imgs.length) {
+        const paths = imgs
+          .map((r) => r.url.split(`/${BUCKET_NAME}/`)[1])
+          .filter(Boolean);
+        if (paths.length) {
+          await supabase.storage.from(BUCKET_NAME).remove(paths);
+        }
+        await supabase.from("user_images").delete().eq("user_id", user.id);
+      }
+
+      const { error: delErr } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", user.id);
+      if (delErr) throw delErr;
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      await supabase.auth.signOut();
+
+      setDeleteConfirm("");
+      setDeleteModalVisible(false);
+
+      const rootNav = navigation.getParent()?.getParent();
+      rootNav?.dispatch(
+        CommonActions.reset({ index: 0, routes: [{ name: "Auth" }] })
+      );
+    } catch (err) {
+      console.error("delete account error", err);
+      Alert.alert("Error", "Could not delete account");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -929,7 +981,42 @@ export function EditProfileScreen({
       <View style={{ marginVertical: 20 }}>
         <Button title={submitLabel} onPress={updateProfile} />
         {showLogout && <Button title="Logout" onPress={handleLogout} />}
+        <Button
+          title="Delete Account"
+          color="red"
+          onPress={() => setDeleteModalVisible(true)}
+        />
       </View>
+      <Modal
+        visible={deleteModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={{ marginBottom: 12 }}>
+              You are about to delete your account, this action is irreversable,
+              type "I UNDERSTAND" to delete your account
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={deleteConfirm}
+              onChangeText={setDeleteConfirm}
+              placeholder="I UNDERSTAND"
+            />
+            <Button
+              title="Confirm Deletion"
+              color="red"
+              onPress={handleDeleteAccount}
+            />
+            <Button
+              title="Cancel"
+              onPress={() => setDeleteModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
