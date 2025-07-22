@@ -201,62 +201,7 @@ export default function SignUpScreen() {
             onChangeText={setConfirmPassword}
           />
         </View>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>First Name</Text>
-          <TextInput
-            style={styles.input}
-            value={firstName}
-            onChangeText={setFirstName}
-          />
-        </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Age</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="number-pad"
-            value={age}
-            onChangeText={setAge}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>City</Text>
-          <TextInput style={styles.input} value={city} onChangeText={setCity} />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Country</Text>
-          <TextInput
-            style={styles.input}
-            value={country}
-            onChangeText={setCountry}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Photos</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            {images.map((img, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[styles.photoSlot, { margin: 4 }]}
-                onPress={() => pickImage(i)}
-              >
-                {img ? (
-                  <Image
-                    source={{ uri: img.uri }}
-                    style={{ width: 80, height: 80 }}
-                  />
-                ) : (
-                  <View
-                    style={[styles.photoEmpty, { width: 80, height: 80 }]}
-                  />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
 
         {loading ? (
           <ActivityIndicator
