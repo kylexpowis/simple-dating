@@ -4,21 +4,15 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Button,
   Alert,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
 } from "react-native";
-import { useNavigation, CommonActions } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
-import * as ImagePicker from "expo-image-picker";
-import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
-
-const IMAGE_BUCKET = "simple-dating-user-images";
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -26,74 +20,6 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [images, setImages] = useState(Array(6).fill(null));
-  const [firstName, setFirstName] = useState("");
-  const [age, setAge] = useState("");
-  const [city, setCity] = useState("");
-  const [country, setCountry] = useState("");
-  const [bio, setBio] = useState("");
-  const [ethnicities, setEthnicities] = useState("");
-  const [relationship, setRelationship] = useState("");
-  const [hasKids, setHasKids] = useState("");
-  const [wantsKids, setWantsKids] = useState("");
-  const [religion, setReligion] = useState("");
-  const [alcohol, setAlcohol] = useState("");
-  const [cigarettes, setCigarettes] = useState("");
-  const [weed, setWeed] = useState("");
-  const [drugs, setDrugs] = useState("");
-
-  const pickImage = async (idx) => {
-    try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.7,
-        base64: true,
-      });
-      if (res.canceled) return;
-      const asset = res.assets[0];
-      const copy = [...images];
-      copy[idx] = asset;
-      setImages(copy);
-    } catch (e) {
-      console.error("pick image error", e);
-    }
-  };
-
-  const uploadSelectedImages = async (userId) => {
-    for (const asset of images) {
-      if (!asset) continue;
-      const { uri: localUri, base64: b64, fileName } = asset;
-      try {
-        if (!b64) continue;
-        let lower = (fileName || localUri).toLowerCase();
-        let extension = lower.endsWith(".png")
-          ? "png"
-          : lower.endsWith(".gif")
-          ? "gif"
-          : "jpg";
-        const mimeType =
-          extension === "png"
-            ? "image/png"
-            : extension === "gif"
-            ? "image/gif"
-            : "image/jpeg";
-        const arrayBuffer = base64ToArrayBuffer(b64);
-        const filePath = `${userId}/${Date.now()}.${extension}`;
-        const { error: upErr } = await supabase.storage
-          .from(IMAGE_BUCKET)
-          .upload(filePath, arrayBuffer, { contentType: mimeType });
-        if (upErr) throw upErr;
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(filePath);
-        await supabase
-          .from("user_images")
-          .insert([{ user_id: userId, url: publicUrl }]);
-      } catch (e) {
-        console.error("image upload error", e);
-      }
-    }
-  };
 
   const handleSignUp = async () => {
     if (!email.trim() || !password) {
@@ -108,53 +34,35 @@ export default function SignUpScreen() {
     setLoading(true);
     try {
       // Supabase sign up.
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
       });
       if (error) throw error;
 
-      const user = data.user;
-      if (!user) throw new Error("No user returned");
-
-      const payload = {
-        id: user.id,
-        first_name: firstName,
-        age: Number(age) || null,
-        city,
-        country,
-        bio,
-        ethnicities,
-        relationship,
-        has_kids: hasKids,
-        wants_kids: wantsKids,
-        religion,
-        alcohol,
-        cigarettes,
-        weed,
-        drugs,
-      };
-      const { error: upErr } = await supabase
-        .from("users")
-        .upsert(payload, { returning: "minimal" });
-      if (upErr) throw upErr;
-
-      await uploadSelectedImages(user.id);
-
-      if (!data.session) {
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (signInErr) throw signInErr;
-      }
-
-      navigation.dispatch(
-        CommonActions.reset({ index: 0, routes: [{ name: "MainTabs" }] })
+      Alert.alert(
+        "Email Confirmation",
+        "Please check email to confirm your account",
+        [{ text: "Confirmed", onPress: handleConfirm }]
       );
     } catch (err) {
       console.log("SignUp error:", err.message);
       Alert.alert("Error Signing Up", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+    } catch (err) {
+      Alert.alert("Error", err.message);
     } finally {
       setLoading(false);
     }
@@ -201,7 +109,6 @@ export default function SignUpScreen() {
             onChangeText={setConfirmPassword}
           />
         </View>
-
 
         {loading ? (
           <ActivityIndicator
@@ -281,17 +188,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1f65ff",
     fontWeight: "600",
-  },
-  photoSlot: {
-    width: 80,
-    height: 80,
-    backgroundColor: "#eee",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  photoEmpty: {
-    backgroundColor: "#ddd",
-    borderRadius: 8,
   },
 });
