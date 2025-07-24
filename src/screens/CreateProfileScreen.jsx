@@ -9,15 +9,10 @@ import {
   StyleSheet,
   Modal,
   Alert,
-  Dimensions,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
-import * as ImagePicker from "expo-image-picker";
-import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
-
-const BUCKET_NAME = "simple-dating-user-images";
 
 const SEX_OPTIONS = [
   "Male",
@@ -77,7 +72,6 @@ const RELIGION_OPTIONS = [
   "Other",
 ];
 
-const { width } = Dimensions.get("window");
 const SIMPLE_OPTIONS = ["Yes", "No", "Social", "Sometimes", "420"];
 
 export default function CreateProfileScreen({ onComplete } = {}) {
@@ -117,177 +111,6 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         ? curr.filter((e) => e !== option)
         : [...curr, option]
     );
-  };
-
-  const pickAndSaveImage = async (idx) => {
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-      if (error || !user) throw error || new Error("No user");
-
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.7,
-        base64: true,
-      });
-      if (res.canceled) return;
-
-      const asset = res.assets[0];
-      const { uri: localUri, base64: b64String, fileName } = asset;
-      if (!b64String) throw new Error("No base64 data returned from picker");
-
-      const lower = (fileName || localUri).toLowerCase();
-      const isPng = lower.endsWith(".png");
-      const isGif = lower.endsWith(".gif");
-      const extension = isPng ? "png" : isGif ? "gif" : "jpg";
-      const mimeType = isPng ? "image/png" : isGif ? "image/gif" : "image/jpeg";
-
-      const arrayBuffer = base64ToArrayBuffer(b64String);
-      if (arrayBuffer.byteLength === 0)
-        throw new Error("Decoded ArrayBuffer is 0 bytes!");
-
-      const filePath = `${user.id}/${Date.now()}.${extension}`;
-      const { error: upErr } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(filePath, arrayBuffer, { contentType: mimeType });
-      if (upErr) throw upErr;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
-
-      const { error: dbErr } = await supabase
-        .from("user_images")
-        .insert([{ user_id: user.id, url: publicUrl }]);
-      if (dbErr) throw dbErr;
-
-      const copy = [...images];
-      copy[idx] = publicUrl;
-      setImages(copy);
-    } catch (e) {
-      console.error("pickAndSaveImage error", e);
-      Alert.alert("Error", "Could not upload image");
-    }
-  };
-
-  const removeImage = async (idx) => {
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-      if (error || !user) throw error || new Error("No user");
-
-      const urlToRemove = images[idx];
-      if (!urlToRemove) return;
-
-      const { error: delErr } = await supabase
-        .from("user_images")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("url", urlToRemove);
-      if (delErr) throw delErr;
-
-      const parts = urlToRemove.split(`/${BUCKET_NAME}/`);
-      if (parts.length > 1) {
-        const filePath = parts[1];
-        const { error: storageErr } = await supabase.storage
-          .from(BUCKET_NAME)
-          .remove([filePath]);
-        if (storageErr) console.error("storage remove error", storageErr);
-      }
-
-      const copy = [...images];
-      copy[idx] = null;
-      setImages(copy);
-    } catch (e) {
-      console.error("removeImage error", e);
-      Alert.alert("Error", "Could not remove photo");
-    }
-  };
-
-  const replaceFlow = async (idx) => {
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-      if (error || !user) throw error || new Error("No user");
-
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.7,
-        base64: true,
-      });
-      if (res.canceled) return;
-
-      const asset = res.assets[0];
-      const { uri: localUri, base64: b64String, fileName } = asset;
-      if (!b64String) throw new Error("No base64 data returned from picker");
-
-      const lower = (fileName || localUri).toLowerCase();
-      const isPng = lower.endsWith(".png");
-      const isGif = lower.endsWith(".gif");
-      const extension = isPng ? "png" : isGif ? "gif" : "jpg";
-      const mimeType = isPng ? "image/png" : isGif ? "image/gif" : "image/jpeg";
-
-      const arrayBuffer = base64ToArrayBuffer(b64String);
-      if (arrayBuffer.byteLength === 0)
-        throw new Error("Decoded ArrayBuffer is 0 bytes!");
-
-      const newFilePath = `${user.id}/${Date.now()}.${extension}`;
-      const { error: upErr } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(newFilePath, arrayBuffer, { contentType: mimeType });
-      if (upErr) throw upErr;
-      const {
-        data: { publicUrl: newUrl },
-      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(newFilePath);
-
-      const { error: dbErr } = await supabase
-        .from("user_images")
-        .insert([{ user_id: user.id, url: newUrl }]);
-      if (dbErr) throw dbErr;
-
-      const oldUrl = images[idx];
-      if (oldUrl) {
-        await supabase
-          .from("user_images")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("url", oldUrl);
-
-        const parts = oldUrl.split(`/${BUCKET_NAME}/`);
-        if (parts.length > 1) {
-          const oldPath = parts[1];
-          const { error: storageErr } = await supabase.storage
-            .from(BUCKET_NAME)
-            .remove([oldPath]);
-          if (storageErr) console.error("old file remove error", storageErr);
-        }
-      }
-
-      const copy = [...images];
-      copy[idx] = newUrl;
-      setImages(copy);
-    } catch (e) {
-      console.error("replaceFlow error", e);
-      Alert.alert("Error", "Could not replace photo");
-    }
-  };
-
-  const handleImagePress = (idx) => {
-    if (!images[idx]) {
-      pickAndSaveImage(idx);
-    } else {
-      Alert.alert("Manage Photo", "What would you like to do?", [
-        { text: "Remove Photo", onPress: () => removeImage(idx) },
-        { text: "Replace Photo", onPress: () => replaceFlow(idx) },
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
   };
 
   const handleCreate = async () => {
@@ -332,25 +155,6 @@ export default function CreateProfileScreen({ onComplete } = {}) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.section}>Photos</Text>
-      <View style={styles.imageGrid}>
-        {images.map((uri, i) => (
-          <TouchableOpacity
-            key={i}
-            style={styles.imageSlot}
-            onPress={() => handleImagePress(i)}
-          >
-            {uri ? (
-              <Image source={{ uri }} style={styles.imageThumb} />
-            ) : (
-              <View style={styles.plusBox}>
-                <Text style={styles.plusText}>+</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-
       <Text style={styles.section}>Are you?</Text>
       <TouchableOpacity style={styles.input} onPress={() => setSexModal(true)}>
         <Text>{sex || "Select"}</Text>
@@ -830,17 +634,4 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
   },
-  imageGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
-  imageSlot: {
-    width: (width - 100) / 3,
-    height: (width - 100) / 3,
-    margin: 8,
-    backgroundColor: "#eee",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  imageThumb: { width: "100%", height: "100%", borderRadius: 8 },
-  plusBox: { justifyContent: "center", alignItems: "center" },
-  plusText: { fontSize: 32, color: "#888" },
 });
