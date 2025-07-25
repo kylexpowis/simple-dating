@@ -6,12 +6,14 @@ import { supabase } from "./Lib/supabase";
 import AuthStack from "./src/navigation/AuthStack";
 import TabNavigator from "./src/navigation/TabNavigator";
 import CreateProfileScreen from "./src/screens/CreateProfileScreen";
+import SelectProfileImage from "./src/screens/SelectProfileImage";
 
 const RootStack = createNativeStackNavigator();
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [profileComplete, setProfileComplete] = useState(false);
+  const [hasImage, setHasImage] = useState(false);
 
   useEffect(() => {
     supabase.auth
@@ -27,6 +29,7 @@ export default function App() {
     const fetchProfile = async () => {
       if (!session) {
         setProfileComplete(false);
+        setHasImage(false);
         return;
       }
       try {
@@ -45,6 +48,27 @@ export default function App() {
     fetchProfile();
   }, [session]);
 
+  useEffect(() => {
+    const checkImages = async () => {
+      if (!session) {
+        setHasImage(false);
+        return;
+      }
+      try {
+        const { count, error } = await supabase
+          .from("user_images")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", session.user.id);
+        if (error) throw error;
+        setHasImage((count || 0) > 0);
+      } catch (e) {
+        console.error("image fetch error", e);
+        setHasImage(false);
+      }
+    };
+    checkImages();
+  }, [session]);
+
   const linking = {
     prefixes: [Linking.createURL("/")],
   };
@@ -61,6 +85,10 @@ export default function App() {
                 onComplete={() => setProfileComplete(true)}
               />
             )}
+          </RootStack.Screen>
+        ) : !hasImage ? (
+          <RootStack.Screen name="SelectProfileImage">
+            {() => <SelectProfileImage onComplete={() => setHasImage(true)} />}
           </RootStack.Screen>
         ) : (
           <RootStack.Screen name="Main" component={TabNavigator} />
