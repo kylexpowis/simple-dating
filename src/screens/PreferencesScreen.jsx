@@ -18,6 +18,7 @@ export default function PreferencesScreen() {
   const [distance, setDistance] = useState("");
   const [hasKids, setHasKids] = useState("");
   const [lookingFor, setLookingFor] = useState([]);
+  const [lookingForSex, setLookingForSex] = useState([]);
   const [wantsKids, setWantsKids] = useState("");
   const [religion, setReligion] = useState("");
   const [alcohol, setAlcohol] = useState("");
@@ -55,6 +56,14 @@ export default function PreferencesScreen() {
     "Just Chatting",
   ];
 
+  const LOOKING_FOR_SEX_OPTIONS = [
+    "Male",
+    "Female",
+    "Trans Male",
+    "Trans Female",
+    "NonBinary",
+  ];
+
   const WANTS_KIDS_OPTIONS = ["Yes", "No", "Not Sure"];
 
   const RELIGION_OPTIONS = [
@@ -79,6 +88,8 @@ export default function PreferencesScreen() {
   const [ethnicityModalVisible, setEthnicityModalVisible] = useState(false);
   const [hasKidsModalVisible, setHasKidsModalVisible] = useState(false);
   const [lookingForModalVisible, setLookingForModalVisible] = useState(false);
+  const [lookingForSexModalVisible, setLookingForSexModalVisible] =
+    useState(false);
   const [wantsKidsModalVisible, setWantsKidsModalVisible] = useState(false);
   const [religionModalVisible, setReligionModalVisible] = useState(false);
   const [alcoholModalVisible, setAlcoholModalVisible] = useState(false);
@@ -97,6 +108,7 @@ export default function PreferencesScreen() {
           setDistance(prefs.distance || "");
           setHasKids(prefs.hasKids || "");
           setLookingFor(prefs.lookingFor || []);
+          setLookingForSex(prefs.lookingForSex || []);
           setWantsKids(prefs.wantsKids || "");
           setReligion(prefs.religion || "");
           setAlcohol(prefs.alcohol || "");
@@ -122,12 +134,19 @@ export default function PreferencesScreen() {
     );
   };
 
+  const toggleLookingForSex = (opt) => {
+    setLookingForSex((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
   const handleSave = async () => {
     const prefs = {
       ethnicities,
       distance,
       hasKids,
       lookingFor,
+      lookingForSex,
       wantsKids,
       religion,
       alcohol,
@@ -227,6 +246,50 @@ export default function PreferencesScreen() {
             <Button
               title="Done"
               onPress={() => setLookingForModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
+      <Text style={styles.section}>Looking for (Sex)</Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setLookingForSexModalVisible(true)}
+      >
+        <Text>
+          {lookingForSex.length > 0
+            ? lookingForSex.join(", ")
+            : "Select options"}
+        </Text>
+      </TouchableOpacity>
+      <Modal
+        visible={lookingForSexModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setLookingForSexModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {LOOKING_FOR_SEX_OPTIONS.map((opt) => {
+                const selected = lookingForSex.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => toggleLookingForSex(opt)}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Done"
+              onPress={() => setLookingForSexModalVisible(false)}
             />
           </View>
         </View>

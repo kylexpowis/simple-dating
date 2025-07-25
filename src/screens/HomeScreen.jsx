@@ -36,6 +36,9 @@ export default function HomeScreen({ navigation }) {
         : [user.relationship];
       if (!rel.some((r) => prefs.lookingFor.includes(r))) return false;
     }
+    if (prefs.lookingForSex?.length && user.sex) {
+      if (!prefs.lookingForSex.includes(user.sex)) return false;
+    }
     if (prefs.hasKids && user.has_kids !== prefs.hasKids) return false;
     if (prefs.wantsKids && user.wants_kids !== prefs.wantsKids) return false;
     if (prefs.religion && user.religion !== prefs.religion) return false;
@@ -78,7 +81,7 @@ export default function HomeScreen({ navigation }) {
 
         // all users and first image
         const { data, error } = await supabase.from("users").select(`
-          id, first_name, age, city, country, ethnicities, relationship,
+          id, first_name, age, city, country, sex,ethnicities, relationship,
           has_kids, wants_kids, religion, alcohol, cigarettes, weed, drugs, bio,
           user_images ( url )
         `);
@@ -97,6 +100,7 @@ export default function HomeScreen({ navigation }) {
           firstName: u.first_name,
           age: u.age,
           location: { city: u.city, country: u.country },
+          sex: u.sex,
           ethnicities: u.ethnicities,
           relationshipType: u.relationship,
           hasKids: u.has_kids,

@@ -93,6 +93,7 @@ export default function CreateProfileScreen({ onComplete } = {}) {
   const [drugs, setDrugs] = useState("");
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState(Array(6).fill(null));
+  const [lookingForSex, setLookingForSex] = useState([]);
 
   const [sexModal, setSexModal] = useState(false);
   const [lookingForModal, setLookingForModal] = useState(false);
@@ -131,6 +132,7 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         country,
         bio,
         ethnicities,
+        looking_for_sex: lookingForSex,
         relationship,
         wants_kids: wantsKids,
         religion,
@@ -264,7 +266,11 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         style={styles.input}
         onPress={() => setLookingForModal(true)}
       >
-        <Text>{lookingFor || "Select"}</Text>
+        <Text>
+          {lookingForSex.length > 0
+            ? lookingForSex.join(", ")
+            : "Select options"}
+        </Text>
       </TouchableOpacity>
       <Modal
         visible={lookingForModal}
@@ -275,28 +281,30 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <ScrollView>
-              {LOOKING_FOR_SEX_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={styles.optionRow}
-                  onPress={() => {
-                    setLookingFor(opt);
-                    setLookingForModal(false);
-                  }}
-                >
-                  <MaterialIcons
-                    name={
-                      lookingFor === opt
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={24}
-                  />
-                  <Text style={styles.optionText}>{opt}</Text>
-                </TouchableOpacity>
-              ))}
+              {LOOKING_FOR_SEX_OPTIONS.map((opt) => {
+                const selected = lookingForSex.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setLookingForSex((curr) =>
+                        curr.includes(opt)
+                          ? curr.filter((o) => o !== opt)
+                          : [...curr, opt]
+                      );
+                    }}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
-            <Button title="Cancel" onPress={() => setLookingForModal(false)} />
+            <Button title="Done" onPress={() => setLookingForModal(false)} />
           </View>
         </View>
       </Modal>
