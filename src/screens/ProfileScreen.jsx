@@ -79,7 +79,7 @@ export function EditProfileScreen({
     );
   };
 
-  const LOOKING_FOR_OPTIONS = [
+  const RELATIONSHIP_OPTIONS = [
     "Casual",
     "Relationship",
     "Short-Term Fun",
@@ -90,7 +90,8 @@ export function EditProfileScreen({
     "Open Relationship",
     "Just Chatting",
   ];
-  const [lookingForModalVisible, setLookingForModalVisible] = useState(false);
+  const [relationshipModalVisible, setRelationshipModalVisible] =
+    useState(false);
 
   const HAS_KIDS_OPTIONS = ["Yes", "No"];
   const [hasKidsModalVisible, setHasKidsModalVisible] = useState(false);
@@ -630,23 +631,23 @@ export function EditProfileScreen({
         </View>
       </Modal>
 
-      <Text style={styles.section}>Looking for</Text>
+      <Text style={styles.section}>Relationship</Text>
       <TouchableOpacity
         style={styles.input}
-        onPress={() => setLookingForModalVisible(true)}
+        onPress={() => setRelationshipModalVisible(true)}
       >
         <Text>{relationship || "Select an option"}</Text>
       </TouchableOpacity>
       <Modal
-        visible={lookingForModalVisible}
+        visible={relationshipModalVisible}
         animationType="slide"
         transparent
-        onRequestClose={() => setLookingForModalVisible(false)}
+        onRequestClose={() => setRelationshipModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <ScrollView>
-              {LOOKING_FOR_OPTIONS.map((opt) => {
+              {RELATIONSHIP_OPTIONS.map((opt) => {
                 const selected = relationship === opt;
                 return (
                   <TouchableOpacity
@@ -654,7 +655,7 @@ export function EditProfileScreen({
                     style={styles.optionRow}
                     onPress={() => {
                       setRelationship(opt);
-                      setLookingForModalVisible(false);
+                      setRelationshipModalVisible(false);
                     }}
                   >
                     <MaterialIcons
@@ -668,7 +669,7 @@ export function EditProfileScreen({
             </ScrollView>
             <Button
               title="Cancel"
-              onPress={() => setLookingForModalVisible(false)}
+              onPress={() => setRelationshipModalVisible(false)}
             />
           </View>
         </View>
@@ -1159,7 +1160,7 @@ function PreviewProfileScreen() {
 
         <Text style={styles.section}>Details</Text>
         <Text>Ethnicities: {(profile.ethnicities || []).join(", ")}</Text>
-        <Text>Looking for: {profile.relationship}</Text>
+        <Text>Relationship Type: {profile.relationship}</Text>
         <Text>Has kids: {profile.has_kids ? "Yes" : "No"}</Text>
         <Text>Wants kids: {profile.wants_kids ? "Yes" : "No"}</Text>
         <Text>Religion: {profile.religion}</Text>
