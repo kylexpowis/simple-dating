@@ -231,7 +231,7 @@ export default function OtherUserProfile() {
 
           <Text style={styles.section}>Details</Text>
           <Text>Ethnicities: {user.ethnicities.join(", ")}</Text>
-          <Text>Looking for: {user.relationshipType}</Text>
+           <Text>Relationship: {user.relationshipType}</Text>
           <Text>Has kids: {user.hasKids ? "Yes" : "No"}</Text>
           <Text>Wants kids: {user.wantsKids ? "Yes" : "No"}</Text>
           <Text>Religion: {user.religion}</Text>

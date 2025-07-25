@@ -17,7 +17,8 @@ export default function PreferencesScreen() {
   const [ethnicities, setEthnicities] = useState([]);
   const [distance, setDistance] = useState("");
   const [hasKids, setHasKids] = useState("");
-  const [lookingFor, setLookingFor] = useState([]);
+  const [lookingFor, setLookingFor] = useState([]); // sex/gender options
+  const [relationship, setRelationship] = useState([]);
   const [wantsKids, setWantsKids] = useState("");
   const [religion, setReligion] = useState("");
   const [alcohol, setAlcohol] = useState("");
@@ -44,6 +45,14 @@ export default function PreferencesScreen() {
   const HAS_KIDS_OPTIONS = ["Yes", "No"];
 
   const LOOKING_FOR_OPTIONS = [
+    "Male",
+    "Female",
+    "Trans Male",
+    "Trans Female",
+    "Non Binary",
+  ];
+
+  const RELATIONSHIP_OPTIONS = [
     "Casual",
     "Relationship",
     "Short-Term Fun",
@@ -78,7 +87,9 @@ export default function PreferencesScreen() {
 
   const [ethnicityModalVisible, setEthnicityModalVisible] = useState(false);
   const [hasKidsModalVisible, setHasKidsModalVisible] = useState(false);
-  const [lookingForModalVisible, setLookingForModalVisible] = useState(false);
+  const [lookingForModalVisible, setLookingForModalVisible] = useState(false); // sex/gender options
+  const [relationshipModalVisible, setRelationshipModalVisible] =
+    useState(false);
   const [wantsKidsModalVisible, setWantsKidsModalVisible] = useState(false);
   const [religionModalVisible, setReligionModalVisible] = useState(false);
   const [alcoholModalVisible, setAlcoholModalVisible] = useState(false);
@@ -97,6 +108,7 @@ export default function PreferencesScreen() {
           setDistance(prefs.distance || "");
           setHasKids(prefs.hasKids || "");
           setLookingFor(prefs.lookingFor || []);
+          setRelationship(prefs.relationship || []);
           setWantsKids(prefs.wantsKids || "");
           setReligion(prefs.religion || "");
           setAlcohol(prefs.alcohol || "");
@@ -122,12 +134,19 @@ export default function PreferencesScreen() {
     );
   };
 
+  const toggleRelationship = (opt) => {
+    setRelationship((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
   const handleSave = async () => {
     const prefs = {
       ethnicities,
       distance,
       hasKids,
       lookingFor,
+      relationship,
       wantsKids,
       religion,
       alcohol,
@@ -227,6 +246,49 @@ export default function PreferencesScreen() {
             <Button
               title="Done"
               onPress={() => setLookingForModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Text style={styles.section}>Relationship</Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setRelationshipModalVisible(true)}
+      >
+        <Text>
+          {relationship.length > 0 ? relationship.join(", ") : "Select options"}
+        </Text>
+      </TouchableOpacity>
+      <Modal
+        visible={relationshipModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRelationshipModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {RELATIONSHIP_OPTIONS.map((opt) => {
+                const selected = relationship.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => toggleRelationship(opt)}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Done"
+              onPress={() => setRelationshipModalVisible(false)}
             />
           </View>
         </View>
