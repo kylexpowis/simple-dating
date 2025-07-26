@@ -15,43 +15,98 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 
 // Tinder Swipe Settings
-const SWIPE_THRESHOLD = 120; // px to trigger like / dislike
-const MAX_ROTATION = 8; // deg tilt at threshold
-const MAX_SINK = 12; // px card “drops” while dragging
+const SWIPE_THRESHOLD = 120;
+const MAX_ROTATION = 8;
+const MAX_SINK = 12;
+
+// Improved logic for matching preferences
+function matchesPreferences(user, prefs) {
+  // If nothing is selected, always return true (show everyone)
+  if (
+    !prefs ||
+    Object.values(prefs).every(
+      (val) => val === undefined || val.length === 0 || val === ""
+    )
+  ) {
+    return true;
+  }
+  // Ethnicities
+  if (prefs.ethnicities && prefs.ethnicities.length) {
+    const eth = user.ethnicities || [];
+    if (!eth.some((e) => prefs.ethnicities.includes(e))) return false;
+  }
+  // Looking For (sex/gender)
+  if (prefs.lookingFor && prefs.lookingFor.length) {
+    // user.sex or user.gender, fallback to sex
+    const userSex =
+      typeof user.sex === "string"
+        ? user.sex
+        : typeof user.gender === "string"
+        ? user.gender
+        : "";
+    if (!prefs.lookingFor.includes(userSex)) return false;
+  }
+  // Relationship
+  if (prefs.relationship && prefs.relationship.length) {
+    const rel = Array.isArray(user.relationship)
+      ? user.relationship
+      : [user.relationship];
+    if (!rel.some((r) => prefs.relationship.includes(r))) return false;
+  }
+  // Has Kids
+  if (prefs.hasKids && prefs.hasKids.length) {
+    const val =
+      user.has_kids === true
+        ? "Yes"
+        : user.has_kids === false
+        ? "No"
+        : user.has_kids;
+    if (!prefs.hasKids.includes(val)) return false;
+  }
+  // Wants Kids
+  if (prefs.wantsKids && prefs.wantsKids.length) {
+    const val =
+      user.wants_kids === true
+        ? "Yes"
+        : user.wants_kids === false
+        ? "No"
+        : user.wants_kids;
+    if (!prefs.wantsKids.includes(val)) return false;
+  }
+  // Religion
+  if (prefs.religion && prefs.religion.length) {
+    if (!prefs.religion.includes(user.religion)) return false;
+  }
+  // Alcohol
+  if (prefs.alcohol && prefs.alcohol.length) {
+    if (!prefs.alcohol.includes(user.alcohol)) return false;
+  }
+  // Cigarettes
+  if (prefs.cigarettes && prefs.cigarettes.length) {
+    if (!prefs.cigarettes.includes(user.cigarettes)) return false;
+  }
+  // Weed
+  if (prefs.weed && prefs.weed.length) {
+    if (!prefs.weed.includes(user.weed)) return false;
+  }
+  // Drugs
+  if (prefs.drugs && prefs.drugs.length) {
+    if (!prefs.drugs.includes(user.drugs)) return false;
+  }
+  return true;
+}
 
 export default function HomeScreen({ navigation }) {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myId, setMyId] = useState(null);
-  const [lastAction, setLastAction] = useState(null); // { type: 'like' | 'dislike', user }
-
-  const matchesPreferences = (user, prefs) => {
-    if (prefs.ethnicities?.length) {
-      const eth = user.ethnicities || [];
-      if (!eth.some((e) => prefs.ethnicities.includes(e))) return false;
-    }
-    if (prefs.lookingFor?.length) {
-      const rel = Array.isArray(user.relationship)
-        ? user.relationship
-        : [user.relationship];
-      if (!rel.some((r) => prefs.lookingFor.includes(r))) return false;
-    }
-    if (prefs.hasKids && user.has_kids !== prefs.hasKids) return false;
-    if (prefs.wantsKids && user.wants_kids !== prefs.wantsKids) return false;
-    if (prefs.religion && user.religion !== prefs.religion) return false;
-    if (prefs.alcohol && user.alcohol !== prefs.alcohol) return false;
-    if (prefs.cigarettes && user.cigarettes !== prefs.cigarettes) return false;
-    if (prefs.weed && user.weed !== prefs.weed) return false;
-    if (prefs.drugs && user.drugs !== prefs.drugs) return false;
-    return true;
-  };
+  const [lastAction, setLastAction] = useState(null);
 
   // Load Profiles
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        // curren user
         const {
           data: { session },
           error: sessionErr,
@@ -69,28 +124,27 @@ export default function HomeScreen({ navigation }) {
               .select("dislikee_id")
               .eq("disliker_id", me),
           ]);
-
         const likedIds = new Set(likedRows.map((r) => r.likee_id));
         const dislikedIds = new Set(dislikedRows.map((r) => r.dislikee_id));
 
+        // Fetch preferences from storage
         const prefStr = await AsyncStorage.getItem("searchPrefs");
         const prefs = prefStr ? JSON.parse(prefStr) : null;
 
-        // all users and first image
+        // Get all users
         const { data, error } = await supabase.from("users").select(`
           id, first_name, age, city, country, ethnicities, relationship,
-          has_kids, wants_kids, religion, alcohol, cigarettes, weed, drugs, bio,
+          has_kids, wants_kids, religion, alcohol, cigarettes, weed, drugs, bio, sex,
           user_images ( url )
         `);
         if (error) throw error;
 
-        // filter for profile card
+        // filter: not self, not liked, not disliked
         let filtered = data.filter(
           (u) => u.id !== me && !likedIds.has(u.id) && !dislikedIds.has(u.id)
         );
-        if (prefs) {
-          filtered = filtered.filter((u) => matchesPreferences(u, prefs));
-        }
+        // apply preferences if they exist
+        filtered = filtered.filter((u) => matchesPreferences(u, prefs));
 
         const formatted = filtered.map((u) => ({
           id: u.id,
@@ -107,6 +161,7 @@ export default function HomeScreen({ navigation }) {
           weed: u.weed,
           drugs: u.drugs,
           bio: u.bio,
+          sex: u.sex,
           photoUrl: u.user_images?.[0]?.url || null,
         }));
         setProfiles(formatted);
@@ -184,6 +239,7 @@ export default function HomeScreen({ navigation }) {
       setLastAction(null);
     }
   }, [lastAction, myId]);
+
   // swipeable profile card component
   function SwipeableProfileCard({ user }) {
     const translateX = useRef(new Animated.Value(0)).current;
@@ -291,8 +347,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#6200ee",
     justifyContent: "center",
     alignItems: "center",
-    elevation: 6, // Android shadow
-    shadowColor: "#000", // iOS shadow
+    elevation: 6,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,

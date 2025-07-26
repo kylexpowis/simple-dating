@@ -36,6 +36,7 @@ export function EditProfileScreen({
   const navigation = useNavigation();
 
   const [images, setImages] = useState(Array(6).fill(null));
+  const [sex, setSex] = useState("");
   const [firstName, setFirstName] = useState("");
   const [age, setAge] = useState("");
   const [city, setCity] = useState("");
@@ -53,6 +54,8 @@ export function EditProfileScreen({
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
+  const SEX_OPTIONS = ["Male", "Female", "Trans Male", "Trans Female", "Other"];
+  const [sexModalVisible, setSexModalVisible] = useState(false);
   const ETHNICITY_OPTIONS = [
     "Black / African Descent",
     "Black / Caribbean Descent",
@@ -156,6 +159,7 @@ export function EditProfileScreen({
         if (imgErr) throw imgErr;
 
         // Initialize form state
+        setSex(usr?.sex || "");
         setFirstName(usr?.first_name || " ");
         setAge(usr?.age?.toString() || " ");
         setCity(usr?.city || " ");
@@ -430,6 +434,7 @@ export function EditProfileScreen({
 
       const payload = {
         id: user.id,
+        sex,
         first_name: firstName,
         age: Number(age) || null,
         city,
@@ -545,6 +550,46 @@ export function EditProfileScreen({
           </TouchableOpacity>
         ))}
       </View>
+      <Text style={styles.section}>I am</Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setSexModalVisible(true)}
+      >
+        <Text>{sex || "Select"}</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={sexModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSexModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {SEX_OPTIONS.map((opt) => {
+                const selected = sex === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => {
+                      setSex(opt);
+                      setSexModalVisible(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button title="Cancel" onPress={() => setSexModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.section}>First Name</Text>
       <TextInput
