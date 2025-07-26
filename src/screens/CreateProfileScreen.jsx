@@ -77,14 +77,14 @@ const SIMPLE_OPTIONS = ["Yes", "No", "Social", "Sometimes", "420"];
 export default function CreateProfileScreen({ onComplete } = {}) {
   const navigation = useNavigation();
   const [sex, setSex] = useState("");
-  const [lookingFor, setLookingFor] = useState("");
+  const [lookingFor, setLookingFor] = useState([]);
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
   const [ethnicities, setEthnicities] = useState([]);
-  const [relationship, setRelationship] = useState("");
+  const [relationship, setRelationship] = useState([]);
   const [wantsKids, setWantsKids] = useState(false);
   const [religion, setReligion] = useState("");
   const [alcohol, setAlcohol] = useState("");
@@ -107,6 +107,22 @@ export default function CreateProfileScreen({ onComplete } = {}) {
 
   const toggleEthnicity = (option) => {
     setEthnicities((curr) =>
+      curr.includes(option)
+        ? curr.filter((e) => e !== option)
+        : [...curr, option]
+    );
+  };
+
+  const toggleLookingFor = (option) => {
+    setLookingFor((curr) =>
+      curr.includes(option)
+        ? curr.filter((e) => e !== option)
+        : [...curr, option]
+    );
+  };
+
+  const toggleRelationship = (option) => {
+    setRelationship((curr) =>
       curr.includes(option)
         ? curr.filter((e) => e !== option)
         : [...curr, option]
@@ -264,7 +280,7 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         style={styles.input}
         onPress={() => setLookingForModal(true)}
       >
-        <Text>{lookingFor || "Select"}</Text>
+        <Text>{lookingFor.length ? lookingFor.join(", ") : "Select"}</Text>
       </TouchableOpacity>
       <Modal
         visible={lookingForModal}
@@ -275,28 +291,24 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <ScrollView>
-              {LOOKING_FOR_SEX_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={styles.optionRow}
-                  onPress={() => {
-                    setLookingFor(opt);
-                    setLookingForModal(false);
-                  }}
-                >
-                  <MaterialIcons
-                    name={
-                      lookingFor === opt
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={24}
-                  />
-                  <Text style={styles.optionText}>{opt}</Text>
-                </TouchableOpacity>
-              ))}
+              {LOOKING_FOR_SEX_OPTIONS.map((opt) => {
+                const selected = lookingFor.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => toggleLookingFor(opt)}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
-            <Button title="Cancel" onPress={() => setLookingForModal(false)} />
+            <Button title="Done" onPress={() => setLookingForModal(false)} />
           </View>
         </View>
       </Modal>
@@ -306,7 +318,7 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         style={styles.input}
         onPress={() => setRelationshipModal(true)}
       >
-        <Text>{relationship || "Select"}</Text>
+        <Text>{relationship.length ? relationship.join(", ") : "Select"}</Text>
       </TouchableOpacity>
       <Modal
         visible={relationshipModal}
@@ -317,31 +329,24 @@ export default function CreateProfileScreen({ onComplete } = {}) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <ScrollView>
-              {RELATIONSHIP_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={styles.optionRow}
-                  onPress={() => {
-                    setRelationship(opt);
-                    setRelationshipModal(false);
-                  }}
-                >
-                  <MaterialIcons
-                    name={
-                      relationship === opt
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={24}
-                  />
-                  <Text style={styles.optionText}>{opt}</Text>
-                </TouchableOpacity>
-              ))}
+              {RELATIONSHIP_OPTIONS.map((opt) => {
+                const selected = relationship.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => toggleRelationship(opt)}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
-            <Button
-              title="Cancel"
-              onPress={() => setRelationshipModal(false)}
-            />
+            <Button title="Done" onPress={() => setRelationshipModal(false)} />
           </View>
         </View>
       </Modal>
