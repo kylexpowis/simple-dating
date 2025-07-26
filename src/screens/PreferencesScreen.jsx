@@ -16,15 +16,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function PreferencesScreen() {
   const [ethnicities, setEthnicities] = useState([]);
   const [distance, setDistance] = useState("");
-  const [hasKids, setHasKids] = useState("");
+  const [hasKids, setHasKids] = useState([]);
   const [lookingFor, setLookingFor] = useState([]); // sex/gender options
   const [relationship, setRelationship] = useState([]);
-  const [wantsKids, setWantsKids] = useState("");
-  const [religion, setReligion] = useState("");
-  const [alcohol, setAlcohol] = useState("");
-  const [cigarettes, setCigarettes] = useState("");
-  const [weed, setWeed] = useState("");
-  const [drugs, setDrugs] = useState("");
+  const [wantsKids, setWantsKids] = useState([]);
+  const [religion, setReligion] = useState([]);
+  const [alcohol, setAlcohol] = useState([]);
+  const [cigarettes, setCigarettes] = useState([]);
+  const [weed, setWeed] = useState([]);
+  const [drugs, setDrugs] = useState([]);
 
   const ETHNICITY_OPTIONS = [
     "Black / African Descent",
@@ -106,15 +106,57 @@ export default function PreferencesScreen() {
           const prefs = JSON.parse(saved);
           setEthnicities(prefs.ethnicities || []);
           setDistance(prefs.distance || "");
-          setHasKids(prefs.hasKids || "");
+          setHasKids(
+            Array.isArray(prefs.hasKids)
+              ? prefs.hasKids
+              : prefs.hasKids
+              ? [prefs.hasKids]
+              : []
+          );
           setLookingFor(prefs.lookingFor || []);
           setRelationship(prefs.relationship || []);
-          setWantsKids(prefs.wantsKids || "");
-          setReligion(prefs.religion || "");
-          setAlcohol(prefs.alcohol || "");
-          setCigarettes(prefs.cigarettes || "");
-          setWeed(prefs.weed || "");
-          setDrugs(prefs.drugs || "");
+          setWantsKids(
+            Array.isArray(prefs.wantsKids)
+              ? prefs.wantsKids
+              : prefs.wantsKids
+              ? [prefs.wantsKids]
+              : []
+          );
+          setReligion(
+            Array.isArray(prefs.religion)
+              ? prefs.religion
+              : prefs.religion
+              ? [prefs.religion]
+              : []
+          );
+          setAlcohol(
+            Array.isArray(prefs.alcohol)
+              ? prefs.alcohol
+              : prefs.alcohol
+              ? [prefs.alcohol]
+              : []
+          );
+          setCigarettes(
+            Array.isArray(prefs.cigarettes)
+              ? prefs.cigarettes
+              : prefs.cigarettes
+              ? [prefs.cigarettes]
+              : []
+          );
+          setWeed(
+            Array.isArray(prefs.weed)
+              ? prefs.weed
+              : prefs.weed
+              ? [prefs.weed]
+              : []
+          );
+          setDrugs(
+            Array.isArray(prefs.drugs)
+              ? prefs.drugs
+              : prefs.drugs
+              ? [prefs.drugs]
+              : []
+          );
         }
       } catch (e) {
         console.error("Error loading preferences", e);
@@ -130,6 +172,48 @@ export default function PreferencesScreen() {
 
   const toggleLookingFor = (opt) => {
     setLookingFor((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
+  const toggleHasKids = (opt) => {
+    setHasKids((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
+  const toggleWantsKids = (opt) => {
+    setWantsKids((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
+  const toggleReligion = (opt) => {
+    setReligion((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
+  const toggleAlcohol = (opt) => {
+    setAlcohol((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
+  const toggleCigarettes = (opt) => {
+    setCigarettes((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
+  const toggleWeed = (opt) => {
+    setWeed((curr) =>
+      curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
+    );
+  };
+
+  const toggleDrugs = (opt) => {
+    setDrugs((curr) =>
       curr.includes(opt) ? curr.filter((e) => e !== opt) : [...curr, opt]
     );
   };
@@ -165,6 +249,9 @@ export default function PreferencesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.section}>
+        Make sure to select everything youre intested in{" "}
+      </Text>
       <Text style={styles.section}>Ethnicities</Text>
       <TouchableOpacity
         style={styles.input}
@@ -299,7 +386,9 @@ export default function PreferencesScreen() {
         style={styles.input}
         onPress={() => setWantsKidsModalVisible(true)}
       >
-        <Text>{wantsKids || "Select an option"}</Text>
+        <Text>
+          {wantsKids.length > 0 ? wantsKids.join(", ") : "Select options"}
+        </Text>
       </TouchableOpacity>
       <Modal
         visible={wantsKidsModalVisible}
@@ -311,15 +400,12 @@ export default function PreferencesScreen() {
           <View style={styles.modalContainer}>
             <ScrollView>
               {WANTS_KIDS_OPTIONS.map((opt) => {
-                const selected = wantsKids === opt;
+                const selected = wantsKids.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setWantsKids(opt);
-                      setWantsKidsModalVisible(false);
-                    }}
+                    onPress={() => toggleWantsKids(opt)}
                   >
                     <MaterialIcons
                       name={selected ? "check-box" : "check-box-outline-blank"}
@@ -331,19 +417,63 @@ export default function PreferencesScreen() {
               })}
             </ScrollView>
             <Button
-              title="Cancel"
+              title="Done"
               onPress={() => setWantsKidsModalVisible(false)}
             />
           </View>
         </View>
       </Modal>
 
+      <Text style={styles.section}>Has kids</Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setHasKidsModalVisible(true)}
+      >
+        <Text>
+          {hasKids.length > 0 ? hasKids.join(", ") : "Select options"}
+        </Text>
+      </TouchableOpacity>
+      <Modal
+        visible={hasKidsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setHasKidsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView>
+              {HAS_KIDS_OPTIONS.map((opt) => {
+                const selected = hasKids.includes(opt);
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={styles.optionRow}
+                    onPress={() => toggleHasKids(opt)}
+                  >
+                    <MaterialIcons
+                      name={selected ? "check-box" : "check-box-outline-blank"}
+                      size={24}
+                    />
+                    <Text style={styles.optionText}>{opt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Button
+              title="Done"
+              onPress={() => setHasKidsModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
       <Text style={styles.section}>Religion</Text>
       <TouchableOpacity
         style={styles.input}
         onPress={() => setReligionModalVisible(true)}
       >
-        <Text>{religion || "Select an option"}</Text>
+        <Text>
+          {religion.length > 0 ? religion.join(", ") : "Select options"}
+        </Text>
       </TouchableOpacity>
       <Modal
         visible={religionModalVisible}
@@ -355,15 +485,12 @@ export default function PreferencesScreen() {
           <View style={styles.modalContainer}>
             <ScrollView>
               {RELIGION_OPTIONS.map((opt) => {
-                const selected = religion === opt;
+                const selected = religion.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setReligion(opt);
-                      setReligionModalVisible(false);
-                    }}
+                    onPress={() => toggleReligion(opt)}
                   >
                     <MaterialIcons
                       name={selected ? "check-box" : "check-box-outline-blank"}
@@ -375,7 +502,7 @@ export default function PreferencesScreen() {
               })}
             </ScrollView>
             <Button
-              title="Cancel"
+              title="Done"
               onPress={() => setReligionModalVisible(false)}
             />
           </View>
@@ -387,7 +514,9 @@ export default function PreferencesScreen() {
         style={styles.input}
         onPress={() => setAlcoholModalVisible(true)}
       >
-        <Text>{alcohol || "Select an option"}</Text>
+        <Text>
+          {alcohol.length > 0 ? alcohol.join(", ") : "Select options"}
+        </Text>
       </TouchableOpacity>
       <Modal
         visible={alcoholModalVisible}
@@ -399,15 +528,12 @@ export default function PreferencesScreen() {
           <View style={styles.modalContainer}>
             <ScrollView>
               {ALCOHOL_OPTIONS.map((opt) => {
-                const selected = alcohol === opt;
+                const selected = alcohol.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setAlcohol(opt);
-                      setAlcoholModalVisible(false);
-                    }}
+                    onPress={() => toggleAlcohol(opt)}
                   >
                     <MaterialIcons
                       name={selected ? "check-box" : "check-box-outline-blank"}
@@ -419,7 +545,7 @@ export default function PreferencesScreen() {
               })}
             </ScrollView>
             <Button
-              title="Cancel"
+              title="Done"
               onPress={() => setAlcoholModalVisible(false)}
             />
           </View>
@@ -431,7 +557,9 @@ export default function PreferencesScreen() {
         style={styles.input}
         onPress={() => setCigarettesModalVisible(true)}
       >
-        <Text>{cigarettes || "Select an option"}</Text>
+        <Text>
+          {cigarettes.length > 0 ? cigarettes.join(", ") : "Select options"}
+        </Text>
       </TouchableOpacity>
       <Modal
         visible={cigarettesModalVisible}
@@ -443,15 +571,12 @@ export default function PreferencesScreen() {
           <View style={styles.modalContainer}>
             <ScrollView>
               {CIGARETTES_OPTIONS.map((opt) => {
-                const selected = cigarettes === opt;
+                const selected = cigarettes.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setCigarettes(opt);
-                      setCigarettesModalVisible(false);
-                    }}
+                    onPress={() => toggleCigarettes(opt)}
                   >
                     <MaterialIcons
                       name={selected ? "check-box" : "check-box-outline-blank"}
@@ -463,7 +588,7 @@ export default function PreferencesScreen() {
               })}
             </ScrollView>
             <Button
-              title="Cancel"
+              title="Done"
               onPress={() => setCigarettesModalVisible(false)}
             />
           </View>
@@ -475,7 +600,7 @@ export default function PreferencesScreen() {
         style={styles.input}
         onPress={() => setWeedModalVisible(true)}
       >
-        <Text>{weed || "Select an option"}</Text>
+        <Text>{weed.length > 0 ? weed.join(", ") : "Select options"}</Text>
       </TouchableOpacity>
       <Modal
         visible={weedModalVisible}
@@ -487,15 +612,12 @@ export default function PreferencesScreen() {
           <View style={styles.modalContainer}>
             <ScrollView>
               {WEED_OPTIONS.map((opt) => {
-                const selected = weed === opt;
+                const selected = weed.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setWeed(opt);
-                      setWeedModalVisible(false);
-                    }}
+                    onPress={() => toggleWeed(opt)}
                   >
                     <MaterialIcons
                       name={selected ? "check-box" : "check-box-outline-blank"}
@@ -506,7 +628,7 @@ export default function PreferencesScreen() {
                 );
               })}
             </ScrollView>
-            <Button title="Cancel" onPress={() => setWeedModalVisible(false)} />
+            <Button title="Done" onPress={() => setWeedModalVisible(false)} />
           </View>
         </View>
       </Modal>
@@ -516,7 +638,7 @@ export default function PreferencesScreen() {
         style={styles.input}
         onPress={() => setDrugsModalVisible(true)}
       >
-        <Text>{drugs || "Select an option"}</Text>
+        <Text>{drugs.length > 0 ? drugs.join(", ") : "Select options"}</Text>
       </TouchableOpacity>
       <Modal
         visible={drugsModalVisible}
@@ -528,15 +650,12 @@ export default function PreferencesScreen() {
           <View style={styles.modalContainer}>
             <ScrollView>
               {DRUGS_OPTIONS.map((opt) => {
-                const selected = drugs === opt;
+                const selected = drugs.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setDrugs(opt);
-                      setDrugsModalVisible(false);
-                    }}
+                    onPress={() => toggleDrugs(opt)}
                   >
                     <MaterialIcons
                       name={selected ? "check-box" : "check-box-outline-blank"}
@@ -547,10 +666,7 @@ export default function PreferencesScreen() {
                 );
               })}
             </ScrollView>
-            <Button
-              title="Cancel"
-              onPress={() => setDrugsModalVisible(false)}
-            />
+            <Button title="Done" onPress={() => setDrugsModalVisible(false)} />
           </View>
         </View>
       </Modal>
@@ -564,50 +680,6 @@ export default function PreferencesScreen() {
         placeholder="e.g. 100km"
       />
       {/* change to draggable radius with map */}
-
-      <Text style={styles.section}>Has kids</Text>
-      <TouchableOpacity
-        style={styles.input}
-        onPress={() => setHasKidsModalVisible(true)}
-      >
-        <Text>{hasKids || "Select an option"}</Text>
-      </TouchableOpacity>
-      <Modal
-        visible={hasKidsModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setHasKidsModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <ScrollView>
-              {HAS_KIDS_OPTIONS.map((opt) => {
-                const selected = hasKids === opt;
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    style={styles.optionRow}
-                    onPress={() => {
-                      setHasKids(opt);
-                      setHasKidsModalVisible(false);
-                    }}
-                  >
-                    <MaterialIcons
-                      name={selected ? "check-box" : "check-box-outline-blank"}
-                      size={24}
-                    />
-                    <Text style={styles.optionText}>{opt}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <Button
-              title="Cancel"
-              onPress={() => setHasKidsModalVisible(false)}
-            />
-          </View>
-        </View>
-      </Modal>
 
       <View style={{ marginVertical: 20 }}>
         <Button title="Save Preferences" onPress={handleSave} />
