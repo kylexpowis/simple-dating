@@ -63,14 +63,31 @@ export default function LikedBy() {
 
         const reqIds = reqRows.map((r) => r.sender_id);
 
-        const reqArray = Array.from(reqIds);
-
-        // fetch their profiles (name + avatar) for the strip
+        // fetch full profiles
         let requests = [];
         if (reqIds.length > 0) {
           const { data: usersReq = [], error: usersReqErr } = await supabase
             .from("users")
-            .select("id, first_name, user_images ( url )")
+            .select(
+              `
+              id,
+              first_name,
+              age,
+              city,
+              country,
+              ethnicities,
+              relationship,
+              has_kids,
+              wants_kids,
+              religion,
+              alcohol,
+              cigarettes,
+              weed,
+              drugs,
+              bio,
+              user_images ( url )
+            `
+            )
             .in("id", reqIds);
           if (usersReqErr) {
             console.error("could not load requesters' profiles:", usersReqErr);
@@ -79,6 +96,18 @@ export default function LikedBy() {
               id: u.id,
               firstName: u.first_name,
               photoUrl: u.user_images?.[0]?.url ?? null,
+              age: u.age,
+              location: { city: u.city, country: u.country },
+              ethnicities: u.ethnicities,
+              relationshipType: u.relationship,
+              hasKids: u.has_kids,
+              wantsKids: u.wants_kids,
+              religion: u.religion,
+              alcohol: u.alcohol,
+              cigarettes: u.cigarettes,
+              weed: u.weed,
+              drugs: u.drugs,
+              bio: u.bio,
             }));
           }
         }
