@@ -162,6 +162,20 @@ export default function ChatsScreen() {
       theirDislikesRows.map((r) => r.disliker_id)
     );
 
+    // 5b) pending message requests - exclude these chats until accepted
+    const { data: pendingReqRows = [], error: pendingReqErr } = await supabase
+      .from("message_requests")
+      .select("sender_id, receiver_id")
+      .or(`sender_id.eq.${_me.id},receiver_id.eq.${_me.id}`)
+      .eq("accepted", false);
+    if (pendingReqErr)
+      console.error("Error fetching message requests:", pendingReqErr);
+    const pendingReqIds = new Set();
+    pendingReqRows.forEach((r) => {
+      const other = r.sender_id === _me.id ? r.receiver_id : r.sender_id;
+      pendingReqIds.add(other);
+    });
+
     // 6) chats + messages
     const { data: chatRows = [], error: chatsErr } = await supabase
       .from("chats")
@@ -207,7 +221,7 @@ export default function ChatsScreen() {
       // include chat if:
       // • it has unread messages
       // • OR there’s at least one message in it
-      if (hasUnread || hasTalked) {
+      if ((hasUnread || hasTalked) && !pendingReqIds.has(otherId)) {
         newChats.push({
           matchId: c.match_id,
           user: userMap[otherId],
