@@ -127,8 +127,10 @@ export default function LikedBy() {
         }
         const likerIds = likesRows.map((r) => r.liker_id);
 
+        // treat anyone who sent a message request as having liked me
+        const combinedIds = Array.from(new Set([...likerIds, ...reqIds]));
         // filter out mutual likes
-        const filteredIds = likerIds.filter((id) => !myLikedIds.has(id));
+        const filteredIds = combinedIds.filter((id) => !myLikedIds.has(id));
         if (filteredIds.length === 0) {
           if (isMounted) {
             setLikedUsers([]);
