@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../Lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -20,6 +21,8 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignUp = async () => {
     if (!email.trim() || !password) {
@@ -70,72 +73,94 @@ export default function SignUpScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#fff" }}
-      behavior={Platform.select({ ios: "padding", android: null })}
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Create an Account</Text>
+      <Text style={styles.title}>Create an Account</Text>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="you@example.com"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-        </View>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="you@example.com"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+      </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.passwordWrapper}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { paddingRight: 40 }]}
             placeholder="••••••••"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             value={password}
             onChangeText={setPassword}
           />
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setShowPassword((prev) => !prev)}
+          >
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={24}
+              color="#555"
+            />
+          </TouchableOpacity>
         </View>
+      </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Confirm Password</Text>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Confirm Password</Text>
+        <View style={styles.passwordWrapper}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { paddingRight: 40 }]}
             placeholder="••••••••"
-            secureTextEntry
+            secureTextEntry={!showConfirmPassword}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
           />
-        </View>
-
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color="#000"
-            style={{ marginTop: 20 }}
-          />
-        ) : (
-          <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-            <Text style={styles.buttonText}>Sign Up</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-            <Text style={styles.footerLink}> Log In</Text>
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setShowConfirmPassword((prev) => !prev)}
+          >
+            <Ionicons
+              name={showConfirmPassword ? "eye-off" : "eye"}
+              size={24}
+              color="#555"
+            />
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
+
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color="#000"
+          style={{ marginTop: 20 }}
+        />
+      ) : (
+        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+          <Text style={styles.buttonText}>Sign Up</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Already have an account?</Text>
+        <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+          <Text style={styles.footerLink}> Log In</Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
+    flex: 1,
     padding: 24,
     justifyContent: "center",
     backgroundColor: "#fff",
@@ -162,6 +187,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     backgroundColor: "#fafafa",
+  },
+  passwordWrapper: {
+    position: "relative",
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    marginTop: -12,
   },
   button: {
     backgroundColor: "#1f65ff",
