@@ -150,6 +150,21 @@ export default function OtherUserProfile() {
     }
   };
 
+  // Report user
+  const handleReport = async () => {
+    if (!currentUser) return;
+    try {
+      await supabase.from("reports").insert({
+        reporter_id: currentUser.id,
+        reported_id: user.id,
+      });
+      Alert.alert("Report submitted", `You reported ${user.firstName}.`);
+    } catch (e) {
+      console.error("Report error:", e);
+      Alert.alert("Could not report user.");
+    }
+  };
+
   // Message
   const handleMessage = () => {
     navigation.navigate("SingleChatScreen", { otherUser: user });
@@ -231,7 +246,7 @@ export default function OtherUserProfile() {
 
           <Text style={styles.section}>Details</Text>
           <Text>Ethnicities: {user.ethnicities.join(", ")}</Text>
-           <Text>Relationship: {user.relationshipType}</Text>
+          <Text>Relationship: {user.relationshipType}</Text>
           <Text>Has kids: {user.hasKids ? "Yes" : "No"}</Text>
           <Text>Wants kids: {user.wantsKids ? "Yes" : "No"}</Text>
           <Text>Religion: {user.religion}</Text>
@@ -257,6 +272,12 @@ export default function OtherUserProfile() {
               title={isMatched ? "Unmatch" : "Dislike"}
               onPress={isMatched ? handleUnmatch : handleDislike}
             />
+            {isMatched && (
+              <>
+                <View style={{ height: 12 }} />
+                <Button title="Report This User" onPress={handleReport} />
+              </>
+            )}
           </View>
         </View>
       </ScrollView>
