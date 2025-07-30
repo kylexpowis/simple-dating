@@ -43,7 +43,7 @@ export function EditProfileScreen({
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
   const [ethnicities, setEthnicities] = useState([]);
-  const [relationship, setRelationship] = useState("");
+  const [relationship, setRelationship] = useState([]);
   const [hasKids, setHasKids] = useState(false);
   const [wantsKids, setWantsKids] = useState(false);
   const [religion, setReligion] = useState("");
@@ -82,6 +82,13 @@ export function EditProfileScreen({
     );
   };
 
+  const toggleRelationship = (option) => {
+    setRelationship((curr) =>
+      curr.includes(option)
+        ? curr.filter((e) => e !== option)
+        : [...curr, option]
+    );
+  };
   const RELATIONSHIP_OPTIONS = [
     "Casual",
     "Relationship",
@@ -166,7 +173,7 @@ export function EditProfileScreen({
         setCountry(usr?.country || " ");
         setBio(usr?.bio || " ");
         setEthnicities(usr?.ethnicities || []);
-        setRelationship(usr?.relationship || "");
+        setRelationship(usr?.relationship || []);
         setHasKids(!!usr?.has_kids);
         setWantsKids(!!usr?.wants_kids);
         setReligion(usr?.religion || "");
@@ -681,7 +688,11 @@ export function EditProfileScreen({
         style={styles.input}
         onPress={() => setRelationshipModalVisible(true)}
       >
-        <Text>{relationship || "Select an option"}</Text>
+        <Text>
+          {relationship.length > 0
+            ? relationship.join(", ")
+            : "Select Relationship"}
+        </Text>
       </TouchableOpacity>
       <Modal
         visible={relationshipModalVisible}
@@ -693,15 +704,12 @@ export function EditProfileScreen({
           <View style={styles.modalContainer}>
             <ScrollView>
               {RELATIONSHIP_OPTIONS.map((opt) => {
-                const selected = relationship === opt;
+                const selected = relationship.includes(opt);
                 return (
                   <TouchableOpacity
                     key={opt}
                     style={styles.optionRow}
-                    onPress={() => {
-                      setRelationship(opt);
-                      setRelationshipModalVisible(false);
-                    }}
+                    onPress={() => toggleRelationship(opt)}
                   >
                     <MaterialIcons
                       name={selected ? "check-box" : "check-box-outline-blank"}
@@ -713,7 +721,7 @@ export function EditProfileScreen({
               })}
             </ScrollView>
             <Button
-              title="Cancel"
+              title="Done"
               onPress={() => setRelationshipModalVisible(false)}
             />
           </View>
@@ -1102,7 +1110,7 @@ function PreviewProfileScreen() {
             country: "",
             bio: "",
             ethnicities: [],
-            relationship: "",
+            relationship: [],
             has_kids: false,
             wants_kids: false,
             religion: "",
@@ -1205,7 +1213,9 @@ function PreviewProfileScreen() {
 
         <Text style={styles.section}>Details</Text>
         <Text>Ethnicities: {(profile.ethnicities || []).join(", ")}</Text>
-        <Text>Relationship Type: {profile.relationship}</Text>
+        <Text>
+          Relationship Type: {(profile.relationship || []).join(", ")}
+        </Text>
         <Text>Has kids: {profile.has_kids ? "Yes" : "No"}</Text>
         <Text>Wants kids: {profile.wants_kids ? "Yes" : "No"}</Text>
         <Text>Religion: {profile.religion}</Text>
