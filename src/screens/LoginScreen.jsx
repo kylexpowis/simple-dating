@@ -1,13 +1,22 @@
 import React, { useState } from "react";
-import { View, TextInput, Button, Alert, StyleSheet } from "react-native";
+import {
+  View,
+  TextInput,
+  Button,
+  Alert,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 import { supabase } from "../../Lib/supabase";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const signIn = async () => {
     if (!email.trim() || !password) {
@@ -41,13 +50,25 @@ export default function LoginScreen() {
         value={email}
         onChangeText={setEmail}
       />
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View style={styles.passwordWrapper}>
+        <TextInput
+          placeholder="Password"
+          secureTextEntry={!showPassword}
+          style={[styles.input, { paddingRight: 40 }]}
+          value={password}
+          onChangeText={setPassword}
+        />
+        <TouchableOpacity
+          style={styles.eyeIcon}
+          onPress={() => setShowPassword((prev) => !prev)}
+        >
+          <Ionicons
+            name={showPassword ? "eye-off" : "eye"}
+            size={24}
+            color="#555"
+          />
+        </TouchableOpacity>
+      </View>
       <View style={styles.buttonContainer}>
         <Button
           title={loading ? "Signing In..." : "Sign In"}
@@ -77,6 +98,15 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     fontSize: 16,
+  },
+  passwordWrapper: {
+    position: "relative",
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 12,
+    top: "40%",
+    marginTop: -12,
   },
   buttonContainer: {
     marginBottom: 12,
