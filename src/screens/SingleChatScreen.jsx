@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../Lib/supabase";
@@ -60,6 +62,14 @@ export default function SingleChatScreen() {
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
       ),
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setMenuVisible((v) => !v)}
+          style={{ marginRight: 15 }}
+        >
+          <Ionicons name="ellipsis-horizontal" size={24} color="black" />
+        </TouchableOpacity>
+      ),
       headerBackTitleVisible: false,
     });
   }, [navigation, otherUser?.firstName, otherUser?.photoUrl]);
@@ -73,6 +83,7 @@ export default function SingleChatScreen() {
   const [isMatched, setIsMatched] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
   const flatListRef = useRef();
   const channelRef = useRef();
 
@@ -324,6 +335,38 @@ export default function SingleChatScreen() {
       Alert.alert("Could not ignore request", err.message);
     }
   };
+
+  const handleUnmatch = async () => {
+    if (!me) return;
+    try {
+      await supabase
+        .from("matches")
+        .delete()
+        .or(
+          `and(user_a.eq.${me.id},user_b.eq.${otherUser.id}),` +
+            `and(user_a.eq.${otherUser.id},user_b.eq.${me.id})`
+        );
+      Alert.alert("Unmatched", `You have unmatched ${otherUser.firstName}.`);
+      navigation.goBack();
+    } catch (e) {
+      console.error("Unmatch error:", e);
+      Alert.alert("Could not unmatch user.");
+    }
+  };
+
+  const handleReport = async () => {
+    if (!me) return;
+    try {
+      await supabase.from("reports").insert({
+        reporter_id: me.id,
+        reported_id: otherUser.id,
+      });
+      Alert.alert("Report submitted", `You reported ${otherUser.firstName}.`);
+    } catch (e) {
+      console.error("Report error:", e);
+      Alert.alert("Could not report user.");
+    }
+  };
   if (error) {
     return (
       <View style={styles.center}>
@@ -341,6 +384,33 @@ export default function SingleChatScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Modal transparent visible={menuVisible} animationType="fade">
+        <Pressable
+          style={styles.menuOverlay}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuOption}
+              onPress={() => {
+                setMenuVisible(false);
+                handleUnmatch();
+              }}
+            >
+              <Text style={styles.menuText}>Unmatch</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuOption}
+              onPress={() => {
+                setMenuVisible(false);
+                handleReport();
+              }}
+            >
+              <Text style={styles.menuText}>Report User</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -476,4 +546,25 @@ const styles = StyleSheet.create({
   headerTitleContainer: { alignItems: "center" },
   headerAvatar: { width: 40, height: 40, borderRadius: 20, marginBottom: 4 },
   headerTitleText: { fontSize: 16, fontWeight: "bold" },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+  },
+  menuContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    marginTop: 60,
+    marginRight: 10,
+    paddingVertical: 8,
+    width: 150,
+  },
+  menuOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuText: {
+    fontSize: 16,
+  },
 });
