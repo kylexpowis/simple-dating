@@ -116,16 +116,18 @@ export default function HomeScreen({ navigation }) {
         setMyId(me);
 
         // likes / dislikes already made
-        const [{ data: likedRows = [] }, { data: dislikedRows = [] }] =
-          await Promise.all([
-            supabase.from("likes").select("likee_id").eq("liker_id", me),
-            supabase
-              .from("dislikes")
-              .select("dislikee_id")
-              .eq("disliker_id", me),
-          ]);
+         const [
+          { data: likedRows = [] },
+          { data: dislikedRows = [] },
+          { data: likedMeRows = [] },
+        ] = await Promise.all([
+          supabase.from("likes").select("likee_id").eq("liker_id", me),
+          supabase.from("dislikes").select("dislikee_id").eq("disliker_id", me),
+          supabase.from("likes").select("liker_id").eq("likee_id", me),
+        ]);
         const likedIds = new Set(likedRows.map((r) => r.likee_id));
         const dislikedIds = new Set(dislikedRows.map((r) => r.dislikee_id));
+        const likedMeIds = new Set(likedMeRows.map((r) => r.liker_id));
 
         // Fetch preferences from storage
         const prefStr = await AsyncStorage.getItem("searchPrefs");
@@ -135,13 +137,18 @@ export default function HomeScreen({ navigation }) {
         const { data, error } = await supabase.from("users").select(`
           id, first_name, age, city, country, ethnicities, relationship,
           has_kids, wants_kids, religion, alcohol, cigarettes, weed, drugs, bio, sex,
+          incognito,
           user_images ( url )
         `);
         if (error) throw error;
 
         // filter: not self, not liked, not disliked
         let filtered = data.filter(
-          (u) => u.id !== me && !likedIds.has(u.id) && !dislikedIds.has(u.id)
+          (u) =>
+            u.id !== me &&
+            !likedIds.has(u.id) &&
+            !dislikedIds.has(u.id) &&
+            (!u.incognito || likedMeIds.has(u.id))
         );
         // apply preferences if they exist
         filtered = filtered.filter((u) => matchesPreferences(u, prefs));
