@@ -18,6 +18,7 @@ import {
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { supabase, supabaseAdmin } from "../../Lib/supabase";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 import { decode as base64ToArrayBuffer } from "base64-arraybuffer";
@@ -53,6 +54,31 @@ export function EditProfileScreen({
   const [drugs, setDrugs] = useState("");
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+
+  const fillLocationFromGPS = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission required",
+          "Location permission was not granted"
+        );
+        return;
+      }
+      const { coords } = await Location.getCurrentPositionAsync({});
+      const [place] = await Location.reverseGeocodeAsync({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+      if (place) {
+        setCity(place.city || "");
+        setCountry(place.country || "");
+      }
+    } catch (err) {
+      console.error("fillLocationFromGPS", err);
+      Alert.alert("Error", "Unable to retrieve location");
+    }
+  };
 
   const SEX_OPTIONS = ["Male", "Female", "Trans Male", "Trans Female", "Other"];
   const [sexModalVisible, setSexModalVisible] = useState(false);
@@ -620,6 +646,12 @@ export function EditProfileScreen({
           onChangeText={setCountry}
           placeholder="Country"
         />
+        <TouchableOpacity
+          style={styles.locationButton}
+          onPress={fillLocationFromGPS}
+        >
+          <MaterialIcons name="my-location" size={24} />
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.section}>Bio</Text>
@@ -1251,6 +1283,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   row: { flexDirection: "row", justifyContent: "space-between" },
+  flex: { flex: 1 },
+  locationButton: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 8,
+    marginTop: 8,
+  },
   safeArea: { flex: 1, backgroundColor: "#fff" },
 
   carouselContainer: {
