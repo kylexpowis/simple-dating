@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Dimensions,
   Modal,
+  Switch,
 } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -52,6 +53,7 @@ export function EditProfileScreen({
   const [cigarettes, setCigarettes] = useState("");
   const [weed, setWeed] = useState("");
   const [drugs, setDrugs] = useState("");
+  const [incognito, setIncognito] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
@@ -200,6 +202,7 @@ export function EditProfileScreen({
         setCigarettes(usr?.cigarettes || "");
         setWeed(usr?.weed || "");
         setDrugs(usr?.drugs || "");
+        setIncognito(!!usr?.incognito);
 
         // image slots: use existing URLs, then null placeholders
         const existing = imgs.map((r) => r.url);
@@ -475,6 +478,7 @@ export function EditProfileScreen({
         cigarettes,
         weed,
         drugs,
+        incognito,
       };
 
       const { error } = await supabase
@@ -1056,6 +1060,17 @@ export function EditProfileScreen({
         </View>
       </Modal>
 
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginVertical: 10,
+        }}
+      >
+        <Text style={{ marginRight: 8 }}>Incognito Mode</Text>
+        <Switch value={incognito} onValueChange={setIncognito} />
+      </View>
+
       <View style={{ marginVertical: 20 }}>
         <Button title={submitLabel} onPress={updateProfile} />
         {showLogout && <Button title="Logout" onPress={handleLogout} />}
@@ -1142,6 +1157,7 @@ function PreviewProfileScreen() {
             cigarettes: "",
             weed: "",
             drugs: "",
+            incognito: false,
           };
           const { error: upsertErr } = await supabase
             .from("users")
