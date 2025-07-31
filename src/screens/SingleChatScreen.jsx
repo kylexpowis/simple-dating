@@ -84,6 +84,7 @@ export default function SingleChatScreen() {
   const [requestSent, setRequestSent] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [confirmUnmatchVisible, setConfirmUnmatchVisible] = useState(false);
   const flatListRef = useRef();
   const channelRef = useRef();
 
@@ -394,7 +395,7 @@ export default function SingleChatScreen() {
               style={styles.menuOption}
               onPress={() => {
                 setMenuVisible(false);
-                handleUnmatch();
+                setConfirmUnmatchVisible(true);
               }}
             >
               <Text style={styles.menuText}>Unmatch</Text>
@@ -408,6 +409,35 @@ export default function SingleChatScreen() {
             >
               <Text style={styles.menuText}>Report User</Text>
             </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+      <Modal transparent visible={confirmUnmatchVisible} animationType="fade">
+        <Pressable
+          style={styles.confirmOverlay}
+          onPress={() => setConfirmUnmatchVisible(false)}
+        >
+          <View style={styles.confirmContainer}>
+            <Text style={styles.confirmText}>
+              Are you sure you want to unmatch?
+            </Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={() => {
+                  setConfirmUnmatchVisible(false);
+                  handleUnmatch();
+                }}
+              >
+                <Text style={styles.confirmYes}>Yes</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={() => setConfirmUnmatchVisible(false)}
+              >
+                <Text style={styles.confirmNo}>No</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -567,4 +597,21 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 16,
   },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  confirmContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 20,
+    width: 260,
+  },
+  confirmText: { fontSize: 16, textAlign: "center", marginBottom: 16 },
+  confirmButtons: { flexDirection: "row", justifyContent: "space-around" },
+  confirmButton: { paddingHorizontal: 20, paddingVertical: 8 },
+  confirmYes: { color: "blue", fontSize: 16 },
+  confirmNo: { color: "red", fontSize: 16 },
 });
