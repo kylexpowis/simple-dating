@@ -85,6 +85,8 @@ export default function SingleChatScreen() {
   const [incomingRequest, setIncomingRequest] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [confirmUnmatchVisible, setConfirmUnmatchVisible] = useState(false);
+  const [afterReportUnmatchPrompt, setAfterReportUnmatchPrompt] =
+    useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const flatListRef = useRef();
@@ -369,6 +371,7 @@ export default function SingleChatScreen() {
       setReportVisible(false);
       setReportReason("");
       setConfirmUnmatchVisible(true);
+      setAfterReportUnmatchPrompt(true);
     } catch (e) {
       console.error("Report error:", e);
       Alert.alert("Could not report user.");
@@ -401,6 +404,7 @@ export default function SingleChatScreen() {
               style={styles.menuOption}
               onPress={() => {
                 setMenuVisible(false);
+                setAfterReportUnmatchPrompt(false);
                 setConfirmUnmatchVisible(true);
               }}
             >
@@ -450,7 +454,9 @@ export default function SingleChatScreen() {
         >
           <View style={styles.confirmContainer}>
             <Text style={styles.confirmText}>
-              Are you sure you want to unmatch?
+              {afterReportUnmatchPrompt
+                ? "Would you also like to unmatch this user?"
+                : "Are you sure you want to unmatch?"}
             </Text>
             <View style={styles.confirmButtons}>
               <TouchableOpacity
@@ -464,7 +470,10 @@ export default function SingleChatScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.confirmButton}
-                onPress={() => setConfirmUnmatchVisible(false)}
+                onPress={() => {
+                  setConfirmUnmatchVisible(false);
+                  setAfterReportUnmatchPrompt(false);
+                }}
               >
                 <Text style={styles.confirmNo}>No</Text>
               </TouchableOpacity>
