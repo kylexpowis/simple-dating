@@ -85,6 +85,8 @@ export default function SingleChatScreen() {
   const [incomingRequest, setIncomingRequest] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [confirmUnmatchVisible, setConfirmUnmatchVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [reportReason, setReportReason] = useState("");
   const flatListRef = useRef();
   const channelRef = useRef();
 
@@ -355,14 +357,18 @@ export default function SingleChatScreen() {
     }
   };
 
-  const handleReport = async () => {
-    if (!me) return;
+  const handleSubmitReport = async () => {
+    if (!me || !reportReason.trim()) return;
     try {
-      await supabase.from("reports").insert({
-        reporter_id: me.id,
-        reported_id: otherUser.id,
+      await supabase.from("reported_users").insert({
+        reporting_user_id: me.id,
+        reported_user_id: otherUser.id,
+        reason: reportReason.trim(),
+        created_at: new Date().toISOString(),
       });
-      Alert.alert("Report submitted", `You reported ${otherUser.firstName}.`);
+      setReportVisible(false);
+      setReportReason("");
+      setConfirmUnmatchVisible(true);
     } catch (e) {
       console.error("Report error:", e);
       Alert.alert("Could not report user.");
@@ -404,11 +410,36 @@ export default function SingleChatScreen() {
               style={styles.menuOption}
               onPress={() => {
                 setMenuVisible(false);
-                handleReport();
+                setReportVisible(true);
               }}
             >
               <Text style={styles.menuText}>Report User</Text>
             </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+      <Modal transparent visible={reportVisible} animationType="fade">
+        <Pressable
+          style={styles.confirmOverlay}
+          onPress={() => setReportVisible(false)}
+        >
+          <View style={styles.reportContainer}>
+            <Text style={styles.confirmText}>Reason for report</Text>
+            <TextInput
+              style={styles.reportInput}
+              value={reportReason}
+              onChangeText={setReportReason}
+              placeholder="Enter reason"
+              multiline
+            />
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleSubmitReport}
+              >
+                <Text style={styles.confirmYes}>Submit</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -614,4 +645,19 @@ const styles = StyleSheet.create({
   confirmButton: { paddingHorizontal: 20, paddingVertical: 8 },
   confirmYes: { color: "blue", fontSize: 16 },
   confirmNo: { color: "red", fontSize: 16 },
+  reportContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 20,
+    width: 280,
+  },
+  reportInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 8,
+    height: 100,
+    textAlignVertical: "top",
+    marginBottom: 12,
+  },
 });
